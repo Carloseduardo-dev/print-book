@@ -18,3 +18,6 @@ local.properties
 /app/build
 /app/release
 /.kotlin
+
+# Configurações locais do Android Studio
+/.idea/
