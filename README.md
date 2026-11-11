@@ -11,7 +11,7 @@ Um organizador de leitura para Android que preserva o acesso aos livros quando a
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/compose)
 [![Android](https://img.shields.io/badge/Android-11%2B%20·%20API%2030-3DDC84?logo=android&logoColor=white)](#começando)
-[![Tests](https://img.shields.io/badge/testes%20unitários-32%20passando-4E7A4B)](#qualidade)
+[![Tests](https://img.shields.io/badge/testes%20unitários-33%20passando-4E7A4B)](#qualidade)
 [![Offline](https://img.shields.io/badge/funciona-100%25%20offline-B0602C)](#privacidade-e-uso-responsável)
 
 <img src="docs/screenshots/banner.png" alt="Telas do print-book: início, biblioteca, leitor, busca no texto e captura com a aura" />
@@ -222,7 +222,7 @@ Documento completo de arquitetura: [`docs/SYSTEM_DESIGN.md`](docs/SYSTEM_DESIGN.
 
 ## Qualidade
 
-**Testes unitários (JVM):** 32 testes cobrindo detecção de tela preta, gatilho de captura, controlador do modo automático, recorte e utilitários de busca.
+**Testes unitários (JVM):** 33 testes cobrindo detecção de tela preta, gatilho de captura, controlador do modo automático, recorte e utilitários de busca.
 
 ```bash
 ./gradlew :app:testPessoalDebugUnitTest
