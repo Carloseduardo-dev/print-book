@@ -43,6 +43,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.printbook.app.data.db.dao.BookWithCover
+import com.printbook.app.data.db.dao.TextSearchHit
+import com.printbook.app.ui.components.SearchHitItem
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.mapLatest
 import com.printbook.app.data.db.entity.CollectionEntity
 import com.printbook.app.data.prefs.LibraryLayout
 import com.printbook.app.data.prefs.LibrarySort
@@ -72,9 +77,10 @@ data class LibraryUiState(
     val query: String = "",
     val sort: LibrarySort = LibrarySort.RECENT,
     val layout: LibraryLayout = LibraryLayout.GRID,
+    val textHits: List<TextSearchHit> = emptyList(),
 )
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, FlowPreview::class)
 @HiltViewModel
 class LibraryViewModel @Inject constructor(
     private val books: BookRepository,
@@ -97,7 +103,10 @@ class LibraryViewModel @Inject constructor(
             LibrarySort.ADDED -> filtered.sortedByDescending { it.createdAt }
         }
         LibraryUiState(true, sorted, all.size, cols, col, s.favoritesOnly, q, s.librarySort, s.libraryLayout)
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState())
+    }.combine(
+        query.debounce(300).mapLatest { q -> if (q.trim().length >= 2) books.searchText(q) else emptyList() },
+    ) { s, hits -> s.copy(textHits = hits) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState())
 
     fun setQuery(q: String) { query.value = q }
     fun selectCollection(id: Long?) { selectedCollection.value = id }
@@ -111,7 +120,11 @@ class LibraryViewModel @Inject constructor(
 }
 
 @Composable
-fun LibraryScreen(onOpenBook: (Long) -> Unit, viewModel: LibraryViewModel = hiltViewModel()) {
+fun LibraryScreen(
+    onOpenBook: (Long) -> Unit,
+    onOpenPage: (bookId: Long, pageIndex: Int) -> Unit,
+    viewModel: LibraryViewModel = hiltViewModel(),
+) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     var sortMenu by remember { mutableStateOf(false) }
     var newCollectionDialog by remember { mutableStateOf(false) }
@@ -155,7 +168,7 @@ fun LibraryScreen(onOpenBook: (Long) -> Unit, viewModel: LibraryViewModel = hilt
             value = state.query,
             onValueChange = viewModel::setQuery,
             leadingIcon = { Icon(Icons.Outlined.Search, null) },
-            placeholder = { Text("Buscar por título") },
+            placeholder = { Text("Buscar por título ou no texto") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
         )
@@ -191,7 +204,31 @@ fun LibraryScreen(onOpenBook: (Long) -> Unit, viewModel: LibraryViewModel = hilt
             }
         }
 
-        if (state.books.isEmpty()) {
+        if (state.query.trim().length >= 2) {
+            // Busca ativa: livros pelo título + páginas pelo texto (OCR).
+            LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(vertical = 8.dp)) {
+                if (state.books.isNotEmpty()) {
+                    item { SectionLabel("Títulos (${state.books.size})") }
+                    items(state.books, key = { "b${it.id}" }) { book ->
+                        BookListItem(book, viewModel.coverFile(book), onClick = { onOpenBook(book.id) })
+                    }
+                }
+                item { SectionLabel("No texto das páginas (${state.textHits.size})") }
+                if (state.textHits.isEmpty()) {
+                    item {
+                        Text(
+                            "Nada encontrado no texto. Livros recém-capturados podem ainda estar sendo indexados.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                        )
+                    }
+                }
+                items(state.textHits, key = { "p${it.pageId}" }) { hit ->
+                    SearchHitItem(hit, showBook = true, onClick = { onOpenPage(hit.bookId, hit.position) })
+                }
+            }
+        } else if (state.books.isEmpty()) {
             Text(
                 "Nenhum livro encontrado.",
                 modifier = Modifier.padding(24.dp),
@@ -226,6 +263,16 @@ fun LibraryScreen(onOpenBook: (Long) -> Unit, viewModel: LibraryViewModel = hilt
             onConfirm = { viewModel.createCollection(it); newCollectionDialog = false },
         )
     }
+}
+
+@Composable
+private fun SectionLabel(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
+    )
 }
 
 @Composable

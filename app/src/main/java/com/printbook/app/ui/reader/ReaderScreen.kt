@@ -1,6 +1,18 @@
 package com.printbook.app.ui.reader
 
 import android.app.Activity
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.runtime.snapshotFlow
+import com.printbook.app.data.db.dao.TextSearchHit
+import com.printbook.app.ui.components.SearchHitItem
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -114,6 +126,7 @@ class ReaderViewModel @Inject constructor(
     fun toggleBookmark(page: PageEntity, bookmarked: Boolean) =
         viewModelScope.launch { books.toggleBookmark(bookId, page.id, bookmarked) }
     fun setFilter(filter: ReaderFilter) = viewModelScope.launch { settingsRepo.setReaderFilter(filter) }
+    suspend fun searchInBook(query: String): List<TextSearchHit> = books.searchInBook(bookId, query)
 }
 
 private fun ReaderFilter.colorFilter(): ColorFilter? = when (this) {
@@ -162,6 +175,8 @@ private fun ReaderContent(state: ReaderUiState, book: BookEntity, viewModel: Rea
     var chromeVisible by remember { mutableStateOf(true) }
     var filterMenu by remember { mutableStateOf(false) }
     val zoomStates = remember { mutableStateMapOf<Int, ZoomableState>() }
+    // Busca dentro do livro.
+    var searchOpen by remember { mutableStateOf(false) }
     val colorFilter = state.settings.readerFilter.colorFilter()
 
     // Tela cheia (barras do sistema escondidas quando o menu do leitor some) e tela sempre ligada.
@@ -255,6 +270,7 @@ private fun ReaderContent(state: ReaderUiState, book: BookEntity, viewModel: Rea
                 ) {
                     IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar") }
                     Text(book.title, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                    IconButton(onClick = { searchOpen = true }) { Icon(Icons.Outlined.Search, "Buscar no livro") }
                     IconButton(onClick = { viewModel.toggleBookmark(current, bookmarked) }) {
                         Icon(if (bookmarked) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder, "Marcador")
                     }
@@ -301,6 +317,57 @@ private fun ReaderContent(state: ReaderUiState, book: BookEntity, viewModel: Rea
                             Icon(Icons.Outlined.ZoomIn, "Aumentar zoom")
                         }
                     }
+                }
+            }
+        }
+    }
+
+    if (searchOpen) {
+        BookSearchSheet(
+            search = viewModel::searchInBook,
+            onDismiss = { searchOpen = false },
+            onOpen = { index ->
+                searchOpen = false
+                scope.launch { pagerState.scrollToPage(index.coerceIn(0, pages.lastIndex)) }
+            },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
+@Composable
+private fun BookSearchSheet(
+    search: suspend (String) -> List<TextSearchHit>,
+    onDismiss: () -> Unit,
+    onOpen: (Int) -> Unit,
+) {
+    var query by remember { mutableStateOf("") }
+    var hits by remember { mutableStateOf<List<TextSearchHit>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        snapshotFlow { query }.debounce(300).collect { q ->
+            hits = if (q.trim().length >= 2) search(q) else emptyList()
+        }
+    }
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                placeholder = { Text("Buscar neste livro") },
+                leadingIcon = { Icon(Icons.Outlined.Search, null) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            )
+            if (query.trim().length >= 2) {
+                Text(
+                    "${hits.size} página(s)",
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
+            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 420.dp)) {
+                items(hits, key = { it.pageId }) { hit ->
+                    SearchHitItem(hit, showBook = false, onClick = { onOpen(hit.position) })
                 }
             }
         }

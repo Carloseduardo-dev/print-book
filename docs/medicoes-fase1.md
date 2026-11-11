@@ -80,6 +80,19 @@ Serviço de Acessibilidade ativado via `settings put secure enabled_accessibilit
 
 Bug encontrado e corrigido: no fim da amostra, o Play Livros abre a tela de compra (mesmo pacote, outra Activity) e a primeira versão capturava essa tela como página. Agora o serviço acompanha a Activity em primeiro plano, e o automático encerra sem capturar quando ela muda.
 
+## Teste 6: 2026-11-11, Fase 4, OCR, busca e PDF (feito por Claude via ADB)
+
+| Teste | Resultado |
+|---|---|
+| Migração Room 1→2 (instalado por cima) | Livros (99 MB), progresso e coleções preservados |
+| OCR em segundo plano (ML Kit embutido) | **482/482 páginas indexadas, 0 falhas**, ~1,5–1,7 s/página (backfill automático ao abrir o app) |
+| Busca na Biblioteca: "euler" | 11 páginas, com o trecho e o termo destacado. Tocar em "pág. 30" abre a página da tabela do método de Euler |
+| Busca sem acento: "aproximacao" (no livro) | Encontra "aproximação" (FTS4 `unicode61 remove_diacritics`). Tocar no resultado leva à página 10/100 |
+| Exportar PDF ("Auto Play fim2", 25 págs.) | `Download/Auto Play fim2.pdf`, **25 páginas, 9,2 MB**, abre e renderiza legível |
+| Leitura em voz alta | Removida a pedido do usuário (ver backlog) |
+
+Decisão: a permissão INTERNET foi mantida (vem do ML Kit; uso futuro possível). Nenhuma função atual depende de rede.
+
 ## Pendentes
 - [x] Repetir o teste após a correção da bolha (Minha Biblioteca e Kindle)
 - [x] Captura de **um app só**: a bolha não aparece. Quadro de 1080×2340.
@@ -94,3 +107,7 @@ Bug encontrado e corrigido: no fim da amostra, o Play Livros abre a tela de comp
   - Intervalo mínimo menor.
   - Estimativa: 100 páginas em ~2 min. Opcional e desligado por padrão, porque viradas muito rápidas aumentam o risco de detecção pelo serviço de leitura.
   - Capturar o livro inteiro sem exibir as páginas é inviável: exigiria quebrar o DRM dos apps (art. 107 da Lei 9.610), o que está fora de questão.
+- **Leitura em voz alta (adiada pelo usuário em 2026-11-11):**
+  - O protótipo usava o `TextToSpeech` do Android (voz pt-BR offline `pt-br-x-afs-seanet-embedded`) sobre o texto do OCR, com avanço automático.
+  - Bug encontrado antes de pausar: depois da primeira página, o avanço pulou da página 30 para a 33 sem ler a 31 e a 32 (as duas com texto de 1,8 a 2,8 mil caracteres). Causa ainda não identificada (callbacks `onDone`/`onStop` × `QUEUE_FLUSH`).
+  - O código foi removido. As funções `TextTools.guessLanguage`/`forSpeech` ficaram, com testes, para reaproveitar.

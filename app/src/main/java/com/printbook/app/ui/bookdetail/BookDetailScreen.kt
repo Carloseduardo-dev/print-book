@@ -1,5 +1,8 @@
 package com.printbook.app.ui.bookdetail
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -45,6 +48,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.printbook.app.data.db.dao.OcrProgress
 import com.printbook.app.data.db.entity.BookEntity
 import com.printbook.app.data.db.entity.BookStatus
 import com.printbook.app.data.db.entity.CollectionEntity
@@ -54,7 +58,10 @@ import com.printbook.app.ui.components.BookCover
 import com.printbook.app.ui.components.formatBytes
 import com.printbook.app.ui.navigation.BookDetailRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import com.printbook.app.export.BookExporter
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -67,13 +74,27 @@ data class BookDetailUiState(
     val pages: List<PageEntity> = emptyList(),
     val collections: List<CollectionEntity> = emptyList(),
     val memberOf: Set<Long> = emptySet(),
+    val ocr: OcrProgress? = null,
 )
 
 @HiltViewModel
 class BookDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val books: BookRepository,
+    private val exporter: BookExporter,
 ) : ViewModel() {
+    val canExport = exporter.available
+    private val _export = MutableStateFlow<String?>(null)
+    /** Mensagem de progresso/resultado da exportação (null = nada em andamento). */
+    val exportStatus: StateFlow<String?> = _export
+
+    fun exportPdf(target: Uri) = viewModelScope.launch {
+        _export.value = "Gerando PDF..."
+        val result = exporter.exportPdf(bookId, target) { done, total -> _export.value = "Gerando PDF: $done/$total páginas" }
+        _export.value = result.fold({ "PDF salvo ($it páginas)" }, { "Falha ao exportar: ${it.message}" })
+    }
+
+    fun clearExportStatus() { _export.value = null }
     val bookId = savedStateHandle.toRoute<BookDetailRoute>().bookId
 
     val state = combine(
@@ -81,7 +102,7 @@ class BookDetailViewModel @Inject constructor(
         books.observeCollections(), books.observeCollectionIds(bookId),
     ) { book, pages, cols, member ->
         BookDetailUiState(true, book, pages, cols, member.toSet())
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BookDetailUiState())
+    }.combine(books.observeOcrProgress(bookId)) { s, ocr -> s.copy(ocr = ocr) }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BookDetailUiState())
 
     fun coverFile(s: BookDetailUiState): File? {
         val book = s.book ?: return null
@@ -109,6 +130,11 @@ fun BookDetailScreen(
     var renameDialog by remember { mutableStateOf(false) }
     var deleteDialog by remember { mutableStateOf(false) }
     var collectionsDialog by remember { mutableStateOf(false) }
+    var exportWarning by remember { mutableStateOf(false) }
+    val exportStatus by viewModel.exportStatus.collectAsStateWithLifecycle()
+    val pdfLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
+        if (uri != null) viewModel.exportPdf(uri)
+    }
     val book = state.book
 
     Scaffold(
@@ -164,6 +190,23 @@ fun BookDetailScreen(
                 }
             }
 
+            state.ocr?.let { ocr ->
+                if (ocr.total > 0) {
+                    val indexed = ocr.done + ocr.failed
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            if (indexed >= ocr.total) "Texto indexado: busca e leitura em voz alta disponíveis"
+                            else "Indexando texto: $indexed/${ocr.total} páginas",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        if (indexed < ocr.total) {
+                            LinearProgressIndicator(progress = { indexed.toFloat() / ocr.total }, modifier = Modifier.fillMaxWidth())
+                        }
+                    }
+                }
+            }
+
             Button(
                 onClick = { onRead(book.id) },
                 enabled = book.pageCount > 0,
@@ -178,6 +221,14 @@ fun BookDetailScreen(
             }
             OutlinedButton(onClick = { collectionsDialog = true }, modifier = Modifier.fillMaxWidth()) {
                 Text(if (state.memberOf.isEmpty()) "Adicionar a uma coleção" else "Coleções (${state.memberOf.size})")
+            }
+            if (viewModel.canExport && book.pageCount > 0) {
+                OutlinedButton(onClick = { exportWarning = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Exportar PDF")
+                }
+                exportStatus?.let {
+                    Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
             if (book.status == BookStatus.CAPTURING) {
                 TextButton(onClick = viewModel::markReady) { Text("Marcar captura como concluída") }
@@ -215,6 +266,22 @@ fun BookDetailScreen(
                 }
             },
             dismissButton = { TextButton(onClick = { deleteDialog = false }) { Text("Cancelar") } },
+        )
+    }
+
+    if (exportWarning && book != null) {
+        AlertDialog(
+            onDismissRequest = { exportWarning = false },
+            title = { Text("Exportar PDF") },
+            text = { Text("O PDF é para seu uso pessoal. Não compartilhe conteúdo protegido por direitos autorais.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    exportWarning = false
+                    viewModel.clearExportStatus()
+                    pdfLauncher.launch("${book.title}.pdf")
+                }) { Text("Escolher onde salvar") }
+            },
+            dismissButton = { TextButton(onClick = { exportWarning = false }) { Text("Cancelar") } },
         )
     }
 

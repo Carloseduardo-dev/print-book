@@ -85,7 +85,12 @@ fun PrintBookNavHost() {
                     onContinueReading = { navController.navigate(ReaderRoute(it)) },
                 )
             }
-            composable<LibraryRoute> { LibraryScreen(onOpenBook = { navController.navigate(BookDetailRoute(it)) }) }
+            composable<LibraryRoute> {
+                LibraryScreen(
+                    onOpenBook = { navController.navigate(BookDetailRoute(it)) },
+                    onOpenPage = { bookId, index -> navController.navigate(ReaderRoute(bookId, index)) },
+                )
+            }
             composable<CaptureRoute> { CaptureScreen(onOpenBook = { navController.navigate(BookDetailRoute(it)) }) }
             composable<SettingsRoute> { SettingsScreen() }
             composable<BookDetailRoute> {
