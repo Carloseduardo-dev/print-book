@@ -306,7 +306,7 @@ O projeto não tem vínculo com nenhuma plataforma de leitura. Marcas citadas no
 
 ## Autor
 
-**Carlos Eduardo Ferreira**, desenvolvedor Android.
+**Carlos Eduardo Ferreira**
 
 [![GitHub](https://img.shields.io/badge/GitHub-Carloseduardo--dev-181717?logo=github)](https://github.com/Carloseduardo-dev)
 
