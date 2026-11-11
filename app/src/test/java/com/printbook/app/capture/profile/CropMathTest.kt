@@ -64,6 +64,22 @@ class CropMathTest {
     }
 
     @Test
+    fun `sombra da barra e alca de rolagem nao impedem o corte das margens`() {
+        // Caso real do Minha Biblioteca com as barras visíveis: logo abaixo da barra superior há
+        // uma faixa de sombra cinza, e na borda direita uma alça de rolagem vertical.
+        val w = 200; val h = 300
+        val shadow = 0xFFDCDCDC.toInt()
+        val handle = 0xFF9E9E9E.toInt()
+        val px = canvas(w, h).apply {
+            fillRect(w, 0, 0, w, 4, shadow)          // sombra da barra (topo da região)
+            fillRect(w, 196, 90, 200, 160, handle)   // alça de rolagem na borda direita
+            fillRect(w, 40, 60, 160, 240, black)     // página (moldura + texto)
+        }
+        val r = CropMath.trimUniformMargins(px, w, PixelRect(0, 0, w, h), step = 1, padding = 0)
+        assertThat(r).isEqualTo(PixelRect(40, 60, 160, 240))
+    }
+
+    @Test
     fun `pagina toda uniforme e mantida`() {
         val w = 50; val h = 50
         val r = CropMath.trimUniformMargins(canvas(w, h), w, PixelRect(0, 0, w, h))

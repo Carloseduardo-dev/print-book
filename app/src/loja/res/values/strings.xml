@@ -1,0 +1,4 @@
+<resources>
+    <!-- Nome distinto no aparelho para não confundir com a edição completa. -->
+    <string name="app_name">print-book loja</string>
+</resources>

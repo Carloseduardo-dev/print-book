@@ -101,7 +101,10 @@ fun CaptureScreen(
     }
     val projectionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         val data = result.data
-        if (result.resultCode == Activity.RESULT_OK && data != null) {
+        if (result.resultCode != Activity.RESULT_OK || data == null) {
+            viewModel.onConsentCancelled()
+        } else {
+            viewModel.onConsentGranted()
             // Iniciado enquanto a Activity está em primeiro plano (exigência do Android 15+).
             ContextCompat.startForegroundService(context, CaptureService.startIntent(context, result.resultCode, data))
         }

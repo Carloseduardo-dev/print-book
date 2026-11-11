@@ -53,10 +53,14 @@ class CaptureViewModel @Inject constructor(
      * Cria (ou reaproveita) o livro e deixa a configuração pronta para o CaptureService.
      * [onReady] é chamado na thread principal para então pedir o consentimento.
      */
+    /** Livro criado agora para esta captura (apagado se o usuário cancelar o consentimento). */
+    private var newlyCreatedBookId: Long? = null
+
     fun prepare(newTitle: String?, existingBookId: Long?, onReady: () -> Unit) {
         viewModelScope.launch {
             val s = settings.value
             val bookId = existingBookId ?: books.createBook(newTitle, s.lastSourceApp)
+            newlyCreatedBookId = if (existingBookId == null) bookId else null
             val book = books.getBook(bookId) ?: return@launch
             stateHolder.pendingConfig = CaptureConfig(
                 bookId = bookId,
@@ -71,6 +75,24 @@ class CaptureViewModel @Inject constructor(
             )
             stateHolder.update { it.copy(warning = null, interrupted = false) }
             onReady()
+        }
+    }
+
+    /** Consentimento concedido: o livro passa a ser da sessão de captura. */
+    fun onConsentGranted() {
+        newlyCreatedBookId = null
+    }
+
+    /**
+     * O usuário cancelou o compartilhamento de tela: apaga o livro recém-criado se ainda estiver
+     * vazio, para não deixar livros órfãos na biblioteca.
+     */
+    fun onConsentCancelled() {
+        stateHolder.pendingConfig = null
+        val id = newlyCreatedBookId ?: return
+        newlyCreatedBookId = null
+        viewModelScope.launch {
+            if ((books.getBook(id)?.pageCount ?: 0) == 0) books.deleteBook(id)
         }
     }
 
