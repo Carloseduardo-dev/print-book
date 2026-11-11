@@ -230,7 +230,11 @@ fun CaptureScreen(
                 }
 
                 Button(
-                    onClick = { viewModel.prepare(title, continueBookId, requestConsent) },
+                    onClick = {
+                        viewModel.prepare(title, continueBookId, requestConsent)
+                        title = ""
+                        continueBookIdRaw = null
+                    },
                     enabled = notificationsGranted && overlayGranted,
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text("Iniciar captura") }

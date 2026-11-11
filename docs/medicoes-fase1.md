@@ -46,8 +46,26 @@ Aparelho: Galaxy A56 (SM-A566E), Android 17 / API 37, tela 1080×2340.
 - **Bug encontrado e corrigido: travamento na One UI.** O `Choreographer` é pausado quando o app fica em segundo plano, o que acontece quando a bolha é escondida. Esperar vsyncs travava a captura para sempre. Agora a espera é por tempo (110 ms) + chegada de quadros, com timeout de 2 s.
 - **Bug corrigido:** um livro concluído continuava "selecionado" na aba Capturar e escondia o campo de nome.
 
+## Teste 4: 2026-11-11, 100 páginas por app (semiautomático, feito por Claude via ADB)
+
+Roteiro: captura de um app só, ▶ na bolha e 99 deslizes para a esquerda a cada 2,6 s.
+
+| App / livro | Salvas | Repetidas | Dimensão | Tamanho (100 págs.) | Média por página |
+|---|---|---|---|---|---|
+| Minha Biblioteca, *Cálculo vol. 2* | **100/100** | 0 | 968×1268 em todas (barras + margens removidas) | **18,5 MB** | 181 KB (7–280) |
+| Play Livros, *Jetpack Compose Essentials* (amostra) | **100/100** | 0 | 1080×2246 em todas (rodapé removido) | **32,4 MB** | 317 KB (183–734) |
+
+- Nenhum par de páginas consecutivas parecido demais: a menor diferença média ficou entre 6,4 e 8,3, contra o limiar de duplicata de 1,0. Ou seja, cada virada gerou exatamente uma captura.
+- Folha de miniaturas das 200 páginas: sem bolha, sem barras do leitor, sem quadro preto.
+- Legibilidade em resolução real: tabela do método de Euler (subscritos e frações) e texto do Play Livros nítidos.
+- O Play Livros fica maior porque guarda a tela inteira em 1080 px de largura com fundo escuro e figuras. Se o espaço virar problema, testar WebP lossy com qualidade 90 (Fase 3).
+
+Bugs corrigidos durante o teste:
+- O nome do livro continuava no campo depois de iniciar a captura (agora é limpo).
+- O botão "Iniciar captura" fica abaixo da dobra quando há livros em captura. Está ok com rolagem, mas é candidato a melhoria de layout.
+
 ## Pendentes
 - [x] Repetir o teste após a correção da bolha (Minha Biblioteca e Kindle)
 - [x] Captura de **um app só**: a bolha não aparece. Quadro de 1080×2340.
-- [ ] Play Livros
-- [ ] Conferir as coordenadas de recorte dos 3 apps
+- [x] Play Livros (100 páginas)
+- [x] Conferir as coordenadas de recorte dos 3 apps
