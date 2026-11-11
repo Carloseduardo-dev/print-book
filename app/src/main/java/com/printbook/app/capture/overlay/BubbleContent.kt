@@ -63,8 +63,9 @@ fun BubbleContent(
 
     Column(
         modifier = Modifier
-            .padding(10.dp) // espaço para o halo da aura
-            .shadow(14.dp, shape, ambientColor = Color.Black, spotColor = Color.Black)
+            // Margem maior que a sombra: senão a sombra é cortada na borda da janela e vira um retângulo.
+            .padding(18.dp)
+            .shadow(7.dp, shape, ambientColor = Color.Black.copy(alpha = 0.35f), spotColor = Color.Black.copy(alpha = 0.45f))
             .clip(shape)
             .background(Ink.copy(alpha = 0.94f))
             .then(
