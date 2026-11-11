@@ -37,8 +37,17 @@ Aparelho: Galaxy A56 (SM-A566E), Android 17 / API 37, tela 1080×2340.
 - **Kindle:** ~16–18 MB por 100 páginas, dentro da estimativa. O Kindle já fica em tela cheia, então só o rodapé "Localização X de Y · %" precisa de recorte.
 - **Minha Biblioteca no modo imersivo** (barras escondidas com um toque): a página aparece centralizada, com margens brancas grandes. Recortar a área da página deve reduzir bem o tamanho.
 
+## Teste 3: 2026-11-11, Fase 2 de ponta a ponta (feito por Claude via ADB)
+
+- **Captura de um app só (Kindle):** quadro 1080×2340. A bolha não aparece (fica fora do app compartilhado).
+- **Semiautomático:** 1 toque em ▶ + 6 viradas de página no Kindle (intervalo de 2,5 s) → **7 páginas**, nenhuma repetida, nenhuma perdida.
+- **Recorte do perfil Kindle:** 1080×2223 (rodapé "Localização" removido). 142–333 KB por página, encode de 93–163 ms.
+- **Leitor:** zoom +/−/ajustar, deslize entre páginas, progresso salvo (página 3 de 7 aparece no Detalhe e no Início).
+- **Bug encontrado e corrigido: travamento na One UI.** O `Choreographer` é pausado quando o app fica em segundo plano, o que acontece quando a bolha é escondida. Esperar vsyncs travava a captura para sempre. Agora a espera é por tempo (110 ms) + chegada de quadros, com timeout de 2 s.
+- **Bug corrigido:** um livro concluído continuava "selecionado" na aba Capturar e escondia o campo de nome.
+
 ## Pendentes
 - [x] Repetir o teste após a correção da bolha (Minha Biblioteca e Kindle)
-- [ ] Captura de **um app só**: a bolha some sozinha? Quais as dimensões do quadro?
+- [x] Captura de **um app só**: a bolha não aparece. Quadro de 1080×2340.
 - [ ] Play Livros
 - [ ] Conferir as coordenadas de recorte dos 3 apps

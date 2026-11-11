@@ -70,7 +70,9 @@ fun CaptureScreen(
     var notificationsGranted by remember { mutableStateOf(hasNotificationPermission(context)) }
     var overlayGranted by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
     var title by rememberSaveable { mutableStateOf("") }
-    var continueBookId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var continueBookIdRaw by rememberSaveable { mutableStateOf<Long?>(null) }
+    // Ignora a seleção se o livro saiu da lista "em captura" (ex.: captura concluída).
+    val continueBookId = continueBookIdRaw?.takeIf { id -> capturingBooks.any { it.id == id } }
 
     LifecycleResumeEffect(Unit) {
         notificationsGranted = hasNotificationPermission(context)
@@ -180,7 +182,7 @@ fun CaptureScreen(
                                 capturingBooks.forEach { book ->
                                     FilterChip(
                                         selected = continueBookId == book.id,
-                                        onClick = { continueBookId = if (continueBookId == book.id) null else book.id },
+                                        onClick = { continueBookIdRaw = if (continueBookId == book.id) null else book.id },
                                         label = { Text("${book.title} (${book.pageCount})") },
                                     )
                                 }

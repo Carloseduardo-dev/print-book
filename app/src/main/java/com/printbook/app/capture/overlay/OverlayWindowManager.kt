@@ -2,7 +2,6 @@ package com.printbook.app.capture.overlay
 
 import android.content.Context
 import android.graphics.PixelFormat
-import android.view.Choreographer
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
@@ -11,8 +10,6 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlin.coroutines.resume
 
 /** Janela TYPE_APPLICATION_OVERLAY arrastável que hospeda a bolha em Compose. */
 class OverlayWindowManager(private val context: Context) {
@@ -59,10 +56,13 @@ class OverlayWindowManager(private val context: Context) {
     /**
      * Esconde/mostra sem remover a janela (usado para tirar a bolha da captura).
      * Usa alpha da janela (aplicado pelo compositor) + visibilidade da view, e deixa a janela
-     * "intocável" enquanto escondida. Ao esconder, suspende até o sistema desenhar alguns
-     * quadros sem a bolha.
+     * "intocável" enquanto escondida.
+     *
+     * Não espera vsync pelo Choreographer: na One UI ele é pausado quando o app fica em segundo
+     * plano (a bolha escondida deixa o app "em fundo"), o que travava a captura. A espera é feita
+     * pelo chamador, por tempo + chegada de quadros novos no VirtualDisplay.
      */
-    suspend fun setVisible(visible: Boolean) {
+    fun setVisible(visible: Boolean) {
         val v = view ?: return
         v.visibility = if (visible) View.VISIBLE else View.INVISIBLE
         params.alpha = if (visible) 1f else 0f
@@ -71,23 +71,7 @@ class OverlayWindowManager(private val context: Context) {
         } else {
             params.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
         }
-        windowManager.updateViewLayout(v, params)
-        if (!visible) awaitFrames(HIDE_FRAMES)
-    }
-
-    private suspend fun awaitFrames(count: Int) {
-        repeat(count) {
-            suspendCancellableCoroutine { cont ->
-                val callback = Choreographer.FrameCallback { if (cont.isActive) cont.resume(Unit) }
-                Choreographer.getInstance().postFrameCallback(callback)
-                cont.invokeOnCancellation { Choreographer.getInstance().removeFrameCallback(callback) }
-            }
-        }
-    }
-
-    private companion object {
-        /** Quadros de vsync aguardados para a remoção da bolha chegar ao compositor. */
-        const val HIDE_FRAMES = 3
+        runCatching { windowManager.updateViewLayout(v, params) }
     }
 
     fun dismiss() {

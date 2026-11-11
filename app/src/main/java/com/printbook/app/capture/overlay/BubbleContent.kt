@@ -79,7 +79,7 @@ fun BubbleContent(
                         Icon(icon, contentDescription = description)
                     }
                 }
-                Text("${state.bookPages}", style = MaterialTheme.typography.labelLarge)
+                Text("${state.bookPages}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
                 if (state.warning != null) {
                     Icon(Icons.Filled.Warning, contentDescription = state.warning, tint = MaterialTheme.colorScheme.error)
                 }

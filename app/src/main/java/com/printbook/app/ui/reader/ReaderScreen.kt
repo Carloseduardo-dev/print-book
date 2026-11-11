@@ -232,7 +232,7 @@ private fun ReaderContent(state: ReaderUiState, book: BookEntity, viewModel: Rea
         val bookmarked = current.id in state.bookmarkedPageIds
 
         AnimatedVisibility(chromeVisible, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.TopCenter)) {
-            Surface(color = Color.Black.copy(alpha = 0.75f), contentColor = Color.White) {
+            Surface(color = Color.Black.copy(alpha = 0.9f), contentColor = Color.White) {
                 Row(
                     Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 4.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -258,7 +258,7 @@ private fun ReaderContent(state: ReaderUiState, book: BookEntity, viewModel: Rea
         }
 
         AnimatedVisibility(chromeVisible, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.BottomCenter)) {
-            Surface(color = Color.Black.copy(alpha = 0.75f), contentColor = Color.White) {
+            Surface(color = Color.Black.copy(alpha = 0.9f), contentColor = Color.White) {
                 Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp)) {
                     if (pages.size > 1) {
                         var sliderValue by remember(pagerState.currentPage) { mutableStateOf(pagerState.currentPage.toFloat()) }

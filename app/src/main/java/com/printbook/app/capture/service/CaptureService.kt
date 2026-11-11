@@ -29,6 +29,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 /**
@@ -156,11 +157,14 @@ class CaptureService : LifecycleService() {
         val prof = profile ?: return@withLock
         stateHolder.update { it.copy(busy = true, warning = null) }
         try {
-            // Esconde a bolha e espera alguns vsyncs; só então aceita quadros novos.
+            // Esconde a bolha e espera o compositor tirá-la da tela; só aceita quadros que
+            // chegarem depois disso. Tela estática não gera quadros novos: após o timeout usa o
+            // mais recente, que já é a composição sem a bolha.
             overlay?.setVisible(false)
             delay(HIDE_SETTLE_MS)
-            // Tela estática não gera quadros novos: após o timeout usa o mais recente (já sem bolha).
-            val frame = currentSession.captureAfter(System.nanoTime(), timeoutMs = 250)
+            val frame = withTimeoutOrNull(CAPTURE_TIMEOUT_MS) {
+                currentSession.captureAfter(System.nanoTime(), timeoutMs = 250)
+            }
             overlay?.setVisible(true)
             if (frame == null) {
                 stateHolder.update { it.copy(warning = "Nenhum quadro disponível") }
@@ -258,8 +262,9 @@ class CaptureService : LifecycleService() {
 
     companion object {
         private const val TAG = "CaptureService"
-        /** Margem extra após os vsyncs, para a latência do compositor até o VirtualDisplay. */
-        private const val HIDE_SETTLE_MS = 32L
+        /** Tempo para a remoção da bolha passar pelo compositor até o VirtualDisplay (~6 quadros). */
+        private const val HIDE_SETTLE_MS = 110L
+        private const val CAPTURE_TIMEOUT_MS = 2_000L
         private const val SAMPLE_INTERVAL_MS = 150L
         /** Diferença média (0..255) abaixo da qual duas páginas são consideradas iguais. */
         private const val DUPLICATE_THRESHOLD = 1.0
