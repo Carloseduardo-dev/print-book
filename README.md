@@ -96,6 +96,7 @@ O **print-book** existe para que esse intervalo não interrompa a leitura. Enqua
 
 **Captura**
 - Botão flutuante sobre o aplicativo de leitura (overlay em Compose), que se esconde no instante da captura.
+- Funciona sobre **qualquer aplicativo que permita captura de tela**: leitores, navegador, PDFs e materiais de estudo.
 - Três modos:
   - **Manual:** um toque por página.
   - **Semiautomático:** o leitor vira a página e o app captura quando a tela estabiliza.
