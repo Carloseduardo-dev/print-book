@@ -1,5 +1,6 @@
 package com.printbook.app.capture.service
 
+import java.io.File
 import com.printbook.app.data.db.entity.SourceApp
 import com.printbook.app.data.prefs.CaptureMode
 import com.printbook.app.data.prefs.PageQuality
@@ -42,7 +43,12 @@ data class CaptureUiState(
     val interrupted: Boolean = false,
     /** Mensagem de encerramento do modo automático (fim do livro, limite...). */
     val autoStopMessage: String? = null,
+    /** Páginas do livro em captura, da mais recente para a mais antiga (preview na bolha). */
+    val recentPages: List<PageThumb> = emptyList(),
 )
+
+/** Miniatura de uma página capturada, para o painel de revisão da bolha. */
+data class PageThumb(val id: Long, val file: File, val position: Int, val rotation: Int)
 
 /** Ponte entre o CaptureService, a bolha flutuante e a aba Capturar. Sem estado estático. */
 @Singleton

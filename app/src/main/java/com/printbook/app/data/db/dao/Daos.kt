@@ -34,6 +34,7 @@ private const val BOOK_WITH_COVER = """
     SELECT b.id, b.title, b.author, b.sourceApp, b.isFavorite, b.lastReadPosition, b.lastReadAt,
            b.pageCount, b.totalBytes, b.status, b.createdAt,
            COALESCE(
+             b.customCoverFile,
              (SELECT p.fileName FROM pages p WHERE p.id = b.coverPageId),
              (SELECT p.fileName FROM pages p WHERE p.bookId = b.id ORDER BY p.position LIMIT 1)
            ) AS coverFile
@@ -73,8 +74,11 @@ interface BookDao {
     @Query("UPDATE books SET lastReadPosition = :position, lastReadAt = :now WHERE id = :id")
     suspend fun setProgress(id: Long, position: Int, now: Long = System.currentTimeMillis())
 
-    @Query("UPDATE books SET coverPageId = :pageId, updatedAt = :now WHERE id = :id")
+    @Query("UPDATE books SET coverPageId = :pageId, customCoverFile = NULL, updatedAt = :now WHERE id = :id")
     suspend fun setCover(id: Long, pageId: Long?, now: Long = System.currentTimeMillis())
+
+    @Query("UPDATE books SET customCoverFile = :fileName, updatedAt = :now WHERE id = :id")
+    suspend fun setCustomCover(id: Long, fileName: String?, now: Long = System.currentTimeMillis())
 
     @Query("UPDATE books SET status = :status, updatedAt = :now WHERE id = :id")
     suspend fun setStatus(id: Long, status: com.printbook.app.data.db.entity.BookStatus, now: Long = System.currentTimeMillis())

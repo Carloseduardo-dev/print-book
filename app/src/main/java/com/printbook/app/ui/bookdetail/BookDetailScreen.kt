@@ -1,5 +1,22 @@
 package com.printbook.app.ui.bookdetail
 
+import android.content.Context
+import android.graphics.ImageDecoder
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import com.printbook.app.ui.components.AuraButton
+import com.printbook.app.ui.components.AuraProgressBar
 import androidx.compose.ui.unit.sp
 import com.printbook.app.ui.theme.MonoMeta
 import com.printbook.app.ui.theme.PrintBook
@@ -109,9 +126,28 @@ class BookDetailViewModel @Inject constructor(
 
     fun coverFile(s: BookDetailUiState): File? {
         val book = s.book ?: return null
-        val page = s.pages.firstOrNull { it.id == book.coverPageId } ?: s.pages.firstOrNull() ?: return null
-        return books.pageFile(book.id, page.fileName)
+        val name = BookRepository.resolveCover(
+            book.customCoverFile,
+            s.pages.firstOrNull { it.id == book.coverPageId }?.fileName,
+            s.pages.firstOrNull()?.fileName,
+        ) ?: return null
+        return books.pageFile(book.id, name)
     }
+
+    fun setCustomCover(context: Context, uri: Uri) = viewModelScope.launch {
+        val bitmap = withContext(Dispatchers.IO) {
+            runCatching {
+                ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri)) { decoder, info, _ ->
+                    decoder.isMutableRequired = false
+                    val w = info.size.width
+                    if (w > 1080) decoder.setTargetSize(1080, info.size.height * 1080 / w)
+                }
+            }.getOrNull()
+        } ?: return@launch
+        books.setCustomCover(bookId, bitmap)
+    }
+
+    fun removeCover() = viewModelScope.launch { books.removeCover(bookId) }
 
     fun toggleFavorite(current: Boolean) = viewModelScope.launch { books.setFavorite(bookId, !current) }
     fun rename(title: String, author: String) = viewModelScope.launch { books.rename(bookId, title, author) }
@@ -134,6 +170,11 @@ fun BookDetailScreen(
     var deleteDialog by remember { mutableStateOf(false) }
     var collectionsDialog by remember { mutableStateOf(false) }
     var exportWarning by remember { mutableStateOf(false) }
+    var coverMenu by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val coverPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) viewModel.setCustomCover(context, uri)
+    }
     val exportStatus by viewModel.exportStatus.collectAsStateWithLifecycle()
     val pdfLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
         if (uri != null) viewModel.exportPdf(uri)
@@ -171,7 +212,44 @@ fun BookDetailScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                BookCover(viewModel.coverFile(state), book.title, Modifier.width(130.dp), isFavorite = book.isFavorite)
+                // Tocar na capa abre o livro; o botão no canto troca a capa.
+                Box(Modifier.width(130.dp)) {
+                    BookCover(
+                        viewModel.coverFile(state), book.title,
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable(enabled = book.pageCount > 0) { onRead(book.id) },
+                        isFavorite = book.isFavorite,
+                    )
+                    Box(Modifier.align(Alignment.BottomEnd).padding(6.dp)) {
+                        SmallFloatingActionButton(
+                            onClick = { coverMenu = true },
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            modifier = Modifier.size(34.dp),
+                        ) { Icon(Icons.Outlined.Image, contentDescription = "Trocar capa", modifier = Modifier.size(18.dp)) }
+                        DropdownMenu(expanded = coverMenu, onDismissRequest = { coverMenu = false }) {
+                            DropdownMenuItem(
+                                text = { Text("Imagem da galeria") },
+                                onClick = {
+                                    coverMenu = false
+                                    coverPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Escolher uma página") },
+                                enabled = book.pageCount > 0,
+                                onClick = { coverMenu = false; onEdit(book.id) },
+                            )
+                            if (book.customCoverFile != null || book.coverPageId != null) {
+                                DropdownMenuItem(
+                                    text = { Text("Usar a primeira página") },
+                                    onClick = { coverMenu = false; viewModel.removeCover() },
+                                )
+                            }
+                        }
+                    }
+                }
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(book.title, style = MaterialTheme.typography.headlineSmall)
                     book.author?.let { Text(it, style = MaterialTheme.typography.titleMedium) }
@@ -188,10 +266,7 @@ fun BookDetailScreen(
             if (book.lastReadAt != null && book.pageCount > 1) {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("Página ${book.lastReadPosition + 1} de ${book.pageCount}", style = MaterialTheme.typography.bodyMedium)
-                    LinearProgressIndicator(
-                        progress = { book.lastReadPosition.toFloat() / (book.pageCount - 1) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    AuraProgressBar(progress = book.lastReadPosition.toFloat() / (book.pageCount - 1))
                 }
             }
 
@@ -200,19 +275,19 @@ fun BookDetailScreen(
                     val indexed = ocr.done + ocr.failed
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            if (indexed >= ocr.total) "● ocr ✓ ${ocr.done}/${ocr.total} · busca no texto disponível"
-                            else "○ indexando texto · $indexed/${ocr.total}",
-                            style = MonoMeta,
+                            if (indexed >= ocr.total) "Busca no texto disponível"
+                            else "Preparando a busca no texto: $indexed de ${ocr.total} páginas",
+                            style = MaterialTheme.typography.bodySmall,
                             color = if (indexed >= ocr.total) PrintBook.tokens.success else PrintBook.tokens.subtle,
                         )
                         if (indexed < ocr.total) {
-                            LinearProgressIndicator(progress = { indexed.toFloat() / ocr.total }, modifier = Modifier.fillMaxWidth())
+                            AuraProgressBar(progress = indexed.toFloat() / ocr.total, height = 3.dp)
                         }
                     }
                 }
             }
 
-            Button(
+            AuraButton(
                 onClick = { onRead(book.id) },
                 enabled = book.pageCount > 0,
                 modifier = Modifier.fillMaxWidth(),

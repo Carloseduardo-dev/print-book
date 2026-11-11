@@ -22,12 +22,17 @@ class RotateTransformation(private val degrees: Int) : Transformation() {
     }
 }
 
+/**
+ * Pedido de imagem de uma página. [thumbnailPx] > 0 decodifica uma versão reduzida (miniaturas,
+ * balão do leitor), muito mais rápida que a página em 1080 px.
+ */
 @Composable
-fun rememberPageRequest(file: File, rotation: Int): ImageRequest {
+fun rememberPageRequest(file: File, rotation: Int, thumbnailPx: Int = 0): ImageRequest {
     val context = LocalContext.current
-    return remember(file, rotation) {
+    return remember(file, rotation, thumbnailPx) {
         ImageRequest.Builder(context)
             .data(file)
+            .apply { if (thumbnailPx > 0) size(thumbnailPx) }
             .apply { if (rotation % 360 != 0) transformations(RotateTransformation(rotation)) }
             .build()
     }

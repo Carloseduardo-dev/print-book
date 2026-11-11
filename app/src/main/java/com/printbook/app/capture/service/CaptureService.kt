@@ -62,6 +62,8 @@ class CaptureService : LifecycleService() {
     private val trigger = AutoCaptureTrigger()
     private var autoJob: Job? = null
     private var userStopped = false
+    private var lastSavedPageId: Long? = null
+    private var previewJob: Job? = null
 
     /** Resultado de uma tentativa de captura. */
     private enum class Outcome { SAVED, DUPLICATE, BLACK, FAILED }
@@ -113,9 +115,15 @@ class CaptureService : LifecycleService() {
                 frameWidth = newSession.width, frameHeight = newSession.height,
             )
         }
-        lifecycleScope.launch {
-            val pages = books.getBook(cfg.bookId)?.pageCount ?: 0
-            stateHolder.update { it.copy(bookPages = pages) }
+        // Páginas do livro (mais recentes primeiro) para o preview e a revisão na bolha.
+        previewJob?.cancel()
+        previewJob = lifecycleScope.launch {
+            books.observePages(cfg.bookId).collect { pages ->
+                val thumbs = pages.asReversed().take(PREVIEW_LIMIT).map {
+                    PageThumb(it.id, books.pageFile(cfg.bookId, it.fileName), it.position, it.rotation)
+                }
+                stateHolder.update { it.copy(bookPages = pages.size, recentPages = thumbs) }
+            }
         }
 
         // Aura de captura: janela própria, intocável, só visível durante a varredura pós-salvamento.
@@ -127,12 +135,38 @@ class CaptureService : LifecycleService() {
                     stateHolder = stateHolder,
                     onDrag = onDrag,
                     onPrimary = ::onBubblePrimary,
+                    onReviewOpened = ::pauseAutoForReview,
+                    onDeletePage = ::deleteCapturedPage,
                     onFinish = {
                         userStopped = true
                         stopCapture()
                     },
                 )
             }
+        }
+    }
+
+    /** Abrir o painel de revisão pausa o (semi)automático: o gesto de virar poderia acertar o painel. */
+    private fun pauseAutoForReview() {
+        val running = autoJob ?: return
+        autoJob = null
+        running.cancel()
+        stateHolder.update { it.copy(autoActive = false) }
+    }
+
+    /**
+     * Exclui uma página capturada pelo painel da bolha (ex.: saiu ruim ou entrou uma notificação).
+     * Se era a última salva, esquece a assinatura para o dedupe não bloquear a recaptura.
+     */
+    private fun deleteCapturedPage(pageId: Long) {
+        val cfg = config ?: return
+        lifecycleScope.launch {
+            if (pageId == lastSavedPageId) {
+                lastSavedSignature = null
+                lastSavedPageId = null
+            }
+            books.deletePages(cfg.bookId, setOf(pageId))
+            stateHolder.update { it.copy(captured = (it.captured - 1).coerceAtLeast(0), warning = null) }
         }
     }
 
@@ -330,6 +364,7 @@ class CaptureService : LifecycleService() {
             frame.recycle()
         }
         lastSavedSignature = page.signature
+        lastSavedPageId = saved.pageId
         Log.i(TAG, "Página ${saved.position + 1}: ${page.crop.width}x${page.crop.height}, ${saved.bytes / 1024} KB, encode ${saved.encodeMs} ms")
         stateHolder.update {
             it.copy(
@@ -352,6 +387,8 @@ class CaptureService : LifecycleService() {
     }
 
     private fun stopCapture() {
+        previewJob?.cancel()
+        previewJob = null
         autoJob?.cancel()
         autoJob = null
         overlay?.dismiss()
@@ -384,6 +421,8 @@ class CaptureService : LifecycleService() {
 
     companion object {
         private const val TAG = "CaptureService"
+        /** Quantas miniaturas o painel de revisão da bolha mostra. */
+        private const val PREVIEW_LIMIT = 80
         /** Tempo para a remoção da bolha passar pelo compositor até o VirtualDisplay (~6 quadros). */
         private const val HIDE_SETTLE_MS = 110L
         private const val CAPTURE_TIMEOUT_MS = 2_000L

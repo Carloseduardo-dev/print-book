@@ -76,7 +76,22 @@ class BookRepository @Inject constructor(
 
     suspend fun setFavorite(id: Long, favorite: Boolean) = bookDao.setFavorite(id, favorite)
     suspend fun setProgress(id: Long, position: Int) = bookDao.setProgress(id, position)
-    suspend fun setCover(id: Long, pageId: Long?) = bookDao.setCover(id, pageId)
+    /** Usa uma página como capa (e descarta a capa própria, se houver). */
+    suspend fun setCover(id: Long, pageId: Long?) = withContext(Dispatchers.IO) {
+        bookDao.get(id)?.customCoverFile?.let { files.delete(id, it) }
+        bookDao.setCover(id, pageId)
+    }
+
+    /** Capa própria a partir de uma imagem (ex.: escolhida no Photo Picker). */
+    suspend fun setCustomCover(id: Long, bitmap: Bitmap) = withContext(Dispatchers.IO) {
+        val old = bookDao.get(id)?.customCoverFile
+        val name = files.writeCover(id, bitmap)
+        bookDao.setCustomCover(id, name)
+        old?.let { files.delete(id, it) }
+    }
+
+    /** Volta à capa padrão (primeira página). */
+    suspend fun removeCover(id: Long) = setCover(id, null)
     /** Conclui a captura e enfileira o OCR (busca no texto / voz alta). */
     suspend fun markReady(id: Long) {
         bookDao.setStatus(id, BookStatus.READY)
@@ -151,6 +166,10 @@ class BookRepository @Inject constructor(
     fun storageBytes(): Long = files.totalBytes()
 
     companion object {
+        /** Ordem de prioridade da capa: própria > página escolhida > primeira página. */
+        fun resolveCover(custom: String?, chosenPage: String?, firstPage: String?): String? =
+            custom ?: chosenPage ?: firstPage
+
         private val leadingArticles = Regex("^(o|a|os|as|um|uma|the|an?)\\s+")
 
         fun sortKey(title: String): String {

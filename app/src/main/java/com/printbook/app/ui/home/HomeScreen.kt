@@ -97,7 +97,7 @@ fun HomeScreen(
     ) {
         item {
             Column(Modifier.padding(horizontal = 16.dp)) {
-                Text("// ${greeting()}", style = MonoMeta, color = PrintBook.tokens.subtle)
+                Text(greeting(), style = MaterialTheme.typography.bodyMedium, color = PrintBook.tokens.subtle)
                 Text("Início", style = MaterialTheme.typography.headlineMedium)
             }
         }
@@ -158,9 +158,9 @@ private fun ContinueReadingCard(book: BookWithCover, cover: File?, onClick: () -
 }
 
 private fun greeting(): String = when (java.time.LocalTime.now().hour) {
-    in 5..11 -> "bom dia"
-    in 12..17 -> "boa tarde"
-    else -> "boa noite"
+    in 5..11 -> "Bom dia"
+    in 12..17 -> "Boa tarde"
+    else -> "Boa noite"
 }
 
 @Composable

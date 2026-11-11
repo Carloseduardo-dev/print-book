@@ -11,7 +11,7 @@ Um organizador de leitura para Android que preserva o acesso aos livros quando a
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/compose)
 [![Android](https://img.shields.io/badge/Android-11%2B%20·%20API%2030-3DDC84?logo=android&logoColor=white)](#começando)
-[![Tests](https://img.shields.io/badge/testes%20unitários-33%20passando-4E7A4B)](#qualidade)
+[![Tests](https://img.shields.io/badge/testes%20unitários-41%20passando-4E7A4B)](#qualidade)
 [![Offline](https://img.shields.io/badge/funciona-100%25%20offline-B0602C)](#privacidade-e-uso-responsável)
 
 <img src="docs/screenshots/banner.png" alt="Telas do print-book: início, biblioteca, leitor, busca no texto e captura com a aura" />
@@ -66,6 +66,7 @@ O **print-book** existe para que esse intervalo não interrompa a leitura. Enqua
 |---|---|
 | ⚡ **Captura automática** | Vira as páginas sozinho e para no fim do livro: **100 páginas em ~6 minutos**, sem intervenção. |
 | 🔎 **Busca no texto, offline** | OCR no próprio aparelho + índice FTS4 que ignora acentos ("aproximacao" encontra "aproximação"). |
+| 👀 **Revisão na hora** | A bolha mostra a última captura; um toque abre a faixa de miniaturas para conferir e excluir uma página ruim sem sair do app de leitura. |
 | 🎯 **Precisão medida** | **200/200 páginas** capturadas sem perda ou duplicata em teste real; **482/482** páginas indexadas sem falha. |
 | 🧱 **Arquitetura limpa** | Single-Activity, MVVM, Hilt, Room, WorkManager; lógica de imagem em **funções puras testadas na JVM**. |
 | 🛡️ **Ético por construção** | Respeita `FLAG_SECURE`; automação isolada numa variante de build que nem entra no APK publicável. |
@@ -222,7 +223,7 @@ Documento completo de arquitetura: [`docs/SYSTEM_DESIGN.md`](docs/SYSTEM_DESIGN.
 
 ## Qualidade
 
-**Testes unitários (JVM):** 33 testes cobrindo detecção de tela preta, gatilho de captura, controlador do modo automático, recorte e utilitários de busca.
+**Testes unitários (JVM):** 41 testes cobrindo detecção de tela preta, gatilho de captura, controlador do modo automático, recorte, utilitários de busca, navegação do leitor e escolha da capa.
 
 ```bash
 ./gradlew :app:testPessoalDebugUnitTest

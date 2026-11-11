@@ -32,18 +32,10 @@ fun formatBytes(bytes: Long): String = when {
     else -> "${bytes / 1024} KB"
 }
 
-/** Barra de progresso de leitura fina (3dp) no acento cobre. */
+/** Barra de progresso de leitura fina (3dp) com o gradiente Aura. */
 @Composable
 fun ReadingBar(progress: Float, modifier: Modifier = Modifier) {
-    LinearProgressIndicator(
-        progress = { progress },
-        modifier = modifier.fillMaxWidth().height(3.dp),
-        color = MaterialTheme.colorScheme.primary,
-        trackColor = MaterialTheme.colorScheme.outline,
-        strokeCap = StrokeCap.Round,
-        gapSize = 0.dp,
-        drawStopIndicator = {},
-    )
+    AuraProgressBar(progress = progress, modifier = modifier, height = 3.dp)
 }
 
 fun BookWithCover.subtitle(): String = buildString {

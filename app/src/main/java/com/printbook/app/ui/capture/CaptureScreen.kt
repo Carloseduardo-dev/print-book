@@ -1,5 +1,12 @@
 package com.printbook.app.ui.capture
 
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.input.ImeAction
+import com.printbook.app.ui.components.AuraButton
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import com.printbook.app.ui.components.auraOnFocus
 import androidx.compose.foundation.background
@@ -89,6 +96,8 @@ fun CaptureScreen(
     // Ignora a seleção se o livro saiu da lista "em captura" (ex.: captura concluída).
     val continueBookId = continueBookIdRaw?.takeIf { id -> capturingBooks.any { it.id == id } }
     var showA11yDisclosure by remember { mutableStateOf(false) }
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
 
     LifecycleResumeEffect(Unit) {
         notificationsGranted = hasNotificationPermission(context)
@@ -198,6 +207,13 @@ fun CaptureScreen(
                                     label = { Text("Nome do novo print-book") },
                                     placeholder = { Text("Ex.: Cálculo vol. 2") },
                                     singleLine = true,
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                    keyboardActions = KeyboardActions(onDone = { keyboard?.hide(); focusManager.clearFocus() }),
+                                    trailingIcon = {
+                                        if (title.isNotBlank()) {
+                                            TextButton(onClick = { keyboard?.hide(); focusManager.clearFocus() }) { Text("OK") }
+                                        }
+                                    },
                                     shape = RoundedCornerShape(14.dp),
                                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = androidx.compose.ui.graphics.Color.Transparent),
                                     modifier = Modifier.fillMaxWidth().auraOnFocus(cornerRadius = 14.dp),
@@ -238,17 +254,19 @@ fun CaptureScreen(
                                 }
                             }
                             Text(settings.captureMode.description, style = MaterialTheme.typography.bodySmall)
-                            TerminalSummary(
+                            SummaryList(
                                 buildList {
-                                    add("$ " + when (settings.captureMode) {
-                                        CaptureMode.AUTO -> "auto --intervalo ${settings.autoIntervalMs / 1000.0}s --limite " +
-                                            (if (settings.maxPagesPerSession > 0) "${settings.maxPagesPerSession}" else "∞")
-                                        CaptureMode.SEMI_AUTO -> "semi --ao-estabilizar"
-                                        CaptureMode.MANUAL -> "manual --toque"
-                                    })
-                                    add((if (settings.autoCrop) "✓" else "·") + " recorte de barras e margens")
-                                    add((if (settings.skipDuplicates) "✓" else "·") + " ignorar páginas repetidas")
-                                    add("✓ qualidade " + settings.pageQuality.label.lowercase())
+                                    add(
+                                        when (settings.captureMode) {
+                                            CaptureMode.AUTO -> "Vira as páginas sozinho a cada ${"%.1f".format(settings.autoIntervalMs / 1000.0)} s" +
+                                                if (settings.maxPagesPerSession > 0) ", até ${settings.maxPagesPerSession} páginas" else ""
+                                            CaptureMode.SEMI_AUTO -> "Captura quando você vira a página"
+                                            CaptureMode.MANUAL -> "Captura a cada toque na bolha"
+                                        } to true,
+                                    )
+                                    add("Recorta barras e margens" to settings.autoCrop)
+                                    add("Ignora páginas repetidas" to settings.skipDuplicates)
+                                    add("Qualidade ${settings.pageQuality.label.lowercase()}" to true)
                                 },
                             )
                             HorizontalDivider()
@@ -275,12 +293,14 @@ fun CaptureScreen(
             }
         }
 
-        // Botão fixo no rodapé: sempre visível, mesmo com a lista de livros em captura.
+        // Botão fixo no rodapé: sempre visível, inclusive acima do teclado (imePadding).
         if (showSetup) {
-            Surface(tonalElevation = 3.dp) {
+            Surface(tonalElevation = 3.dp, modifier = Modifier.imePadding()) {
                 Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
-                    Button(
+                    AuraButton(
                         onClick = {
+                            keyboard?.hide()
+                            focusManager.clearFocus()
                             viewModel.prepare(title, continueBookId, requestConsent)
                             title = ""
                             continueBookIdRaw = null
@@ -373,21 +393,30 @@ private fun AutomationCard(available: Boolean, onEnable: () -> Unit) {
     }
 }
 
+/** Resumo da configuração em linguagem simples: ✓ ligado, — desligado. */
 @Composable
-private fun TerminalSummary(lines: List<String>) {
+private fun SummaryList(items: List<Pair<String, Boolean>>) {
     Column(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        lines.forEach { line ->
-            Text(
-                line,
-                style = MonoMeta.copy(lineHeight = 19.sp),
-                color = if (line.startsWith("✓")) PrintBook.tokens.success else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        items.forEach { (text, on) ->
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    if (on) "✓" else "—",
+                    color = if (on) PrintBook.tokens.success else PrintBook.tokens.subtle,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (on) MaterialTheme.colorScheme.onSurface else PrintBook.tokens.subtle,
+                )
+            }
         }
     }
 }

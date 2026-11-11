@@ -172,15 +172,16 @@ fun EditorScreen(
         if (!state.loaded) return@Scaffold
         if (!selecting) {
             Text(
-                "Toque e segure para selecionar páginas. Toque numa página para abri-la.",
+                "Segure para selecionar · toque para abrir",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
                 modifier = Modifier.padding(padding).padding(horizontal = 16.dp),
             )
         }
         LazyVerticalGrid(
             columns = GridCells.Adaptive(100.dp),
-            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = padding.calculateTopPadding() + 24.dp, bottom = padding.calculateBottomPadding() + 12.dp),
+            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = padding.calculateTopPadding() + 30.dp, bottom = padding.calculateBottomPadding() + 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxSize(),

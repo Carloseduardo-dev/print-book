@@ -1,5 +1,7 @@
 package com.printbook.app.ui.reader
 
+import androidx.compose.runtime.mutableFloatStateOf
+import com.printbook.app.ui.components.AuraSlider
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import com.printbook.app.ui.components.auraOnFocus
@@ -28,6 +30,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -82,6 +87,8 @@ import com.printbook.app.data.prefs.Settings
 import com.printbook.app.data.prefs.SettingsRepository
 import com.printbook.app.data.repository.BookRepository
 import com.printbook.app.ui.components.rememberPageRequest
+import com.printbook.app.ui.components.RotateTransformation
+import coil3.request.transformations
 import com.printbook.app.ui.navigation.ReaderRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.NonCancellable
@@ -180,6 +187,10 @@ private fun ReaderContent(state: ReaderUiState, book: BookEntity, viewModel: Rea
     var chromeVisible by remember { mutableStateOf(true) }
     var filterMenu by remember { mutableStateOf(false) }
     val zoomStates = remember { mutableStateMapOf<Int, ZoomableState>() }
+    // Arraste da barra de progresso: mostra a página-alvo ao vivo e só navega ao soltar.
+    var scrubbing by remember { mutableStateOf(false) }
+    var scrubValue by remember { mutableFloatStateOf(0f) }
+    val shownPage = if (scrubbing) ReaderMath.scrubPage(scrubValue, pages.lastIndex) else pagerState.currentPage
     // Busca dentro do livro.
     var searchOpen by remember { mutableStateOf(false) }
     val colorFilter = state.settings.readerFilter.colorFilter()
@@ -298,17 +309,28 @@ private fun ReaderContent(state: ReaderUiState, book: BookEntity, viewModel: Rea
             Surface(color = Color.Black.copy(alpha = 0.9f), contentColor = Color.White) {
                 Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp)) {
                     if (pages.size > 1) {
-                        var sliderValue by remember(pagerState.currentPage) { mutableStateOf(pagerState.currentPage.toFloat()) }
-                        Slider(
-                            value = sliderValue,
-                            onValueChange = { sliderValue = it },
-                            onValueChangeFinished = { scope.launch { pagerState.scrollToPage(sliderValue.toInt()) } },
+                        if (scrubbing) {
+                            ScrubPreview(
+                                file = viewModel.file(pages[shownPage]),
+                                rotation = pages[shownPage].rotation,
+                                label = "p. ${shownPage + 1}",
+                                fraction = ReaderMath.fraction(shownPage, pages.lastIndex),
+                            )
+                        }
+                        AuraSlider(
+                            value = if (scrubbing) scrubValue else pagerState.currentPage.toFloat(),
+                            onValueChange = { scrubbing = true; scrubValue = it },
+                            onValueChangeFinished = {
+                                val target = ReaderMath.scrubPage(scrubValue, pages.lastIndex)
+                                scrubbing = false
+                                scope.launch { pagerState.scrollToPage(target) }
+                            },
                             valueRange = 0f..pages.lastIndex.toFloat(),
                         )
                     }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            "p. ${pagerState.currentPage + 1} / ${pages.size}",
+                            "p. ${shownPage + 1} / ${pages.size}",
                             style = MonoMeta.copy(fontSize = 12.sp),
                             maxLines = 1,
                             modifier = Modifier.weight(1f),
@@ -378,6 +400,47 @@ private fun BookSearchSheet(
                     SearchHitItem(hit, showBook = false, onClick = { onOpen(hit.position) })
                 }
             }
+        }
+    }
+}
+
+/** Balão acima da barra durante o arraste: miniatura e número da página-alvo. */
+@Composable
+private fun ScrubPreview(file: File, rotation: Int, label: String, fraction: Float) {
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+        val balloonWidth = 92.dp
+        val x = (maxWidth - balloonWidth) * fraction
+        Column(
+            modifier = Modifier
+                .padding(start = x)
+                .width(balloonWidth)
+                .clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                .background(Color.Black.copy(alpha = 0.85f))
+                .padding(6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            // Enquanto a página nova decodifica, mostra a última que carregou (o balão nunca fica vazio).
+            val context = androidx.compose.ui.platform.LocalContext.current
+            var lastLoaded by remember { mutableStateOf<String?>(null) }
+            val key = "scrub-${file.name}-$rotation"
+            val request = remember(key) {
+                coil3.request.ImageRequest.Builder(context)
+                    .data(file)
+                    .size(240)
+                    .memoryCacheKey(key)
+                    .placeholderMemoryCacheKey(lastLoaded)
+                    .apply { if (rotation % 360 != 0) transformations(RotateTransformation(rotation)) }
+                    .build()
+            }
+            coil3.compose.AsyncImage(
+                model = request,
+                onSuccess = { lastLoaded = key },
+                contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                modifier = Modifier.width(80.dp).height(110.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp)),
+            )
+            Text(label, color = Color.White, style = MonoMeta.copy(fontSize = 12.sp))
         }
     }
 }

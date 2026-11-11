@@ -42,6 +42,21 @@ class PageFileStore @Inject constructor(@ApplicationContext context: Context) {
         return Written(name, target.length(), encodeMs)
     }
 
+    /** Grava a capa própria (WebP 90, até 1080 px de largura) e devolve o nome do arquivo. */
+    fun writeCover(bookId: Long, bitmap: Bitmap): String {
+        val dir = bookDir(bookId).apply { mkdirs() }
+        val scaled = if (bitmap.width > COVER_MAX_WIDTH) {
+            Bitmap.createScaledBitmap(bitmap, COVER_MAX_WIDTH, bitmap.height * COVER_MAX_WIDTH / bitmap.width, true)
+        } else bitmap
+        // Nome único a cada troca: evita o cache de imagem mostrar a capa antiga.
+        val name = "cover-${UUID.randomUUID()}.webp"
+        val tmp = File(dir, "$name.tmp")
+        tmp.outputStream().use { scaled.compress(Bitmap.CompressFormat.WEBP_LOSSY, LOSSY_QUALITY, it) }
+        if (scaled !== bitmap) scaled.recycle()
+        check(tmp.renameTo(File(dir, name))) { "Falha ao gravar a capa" }
+        return name
+    }
+
     fun delete(bookId: Long, fileName: String) {
         file(bookId, fileName).delete()
     }
@@ -56,5 +71,6 @@ class PageFileStore @Inject constructor(@ApplicationContext context: Context) {
         /** Em WEBP_LOSSLESS, "quality" é o esforço de compressão (medido: ~145 ms/página no A56). */
         const val LOSSLESS_EFFORT = 75
         const val LOSSY_QUALITY = 90
+        const val COVER_MAX_WIDTH = 1080
     }
 }

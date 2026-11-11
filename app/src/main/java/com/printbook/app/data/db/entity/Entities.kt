@@ -33,6 +33,8 @@ data class BookEntity(
     val sourceApp: SourceApp = SourceApp.OTHER,
     /** Sem FK para evitar ciclo books<->pages; nulo = usar a primeira página. */
     val coverPageId: Long? = null,
+    /** Capa própria (imagem escolhida pelo usuário), arquivo em books/{id}/. Tem prioridade. */
+    val customCoverFile: String? = null,
     val isFavorite: Boolean = false,
     val lastReadPosition: Int = 0,
     val lastReadAt: Long? = null,

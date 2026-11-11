@@ -26,9 +26,9 @@ import com.printbook.app.data.db.entity.PageTextFts
         PageTextEntity::class,
         PageTextFts::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
-    autoMigrations = [AutoMigration(from = 1, to = 2)],
+    autoMigrations = [AutoMigration(from = 1, to = 2), AutoMigration(from = 2, to = 3)],
 )
 abstract class PrintBookDatabase : RoomDatabase() {
     abstract fun bookDao(): BookDao
