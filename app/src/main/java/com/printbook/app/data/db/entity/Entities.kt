@@ -1,7 +1,10 @@
 package com.printbook.app.data.db.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Fts4
+import androidx.room.FtsOptions
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
@@ -55,7 +58,11 @@ data class PageEntity(
     val byteSize: Long,
     val rotation: Int = 0,
     val capturedAt: Long = System.currentTimeMillis(),
+    /** Estado do OCR da página (busca no texto e leitura em voz alta). */
+    @ColumnInfo(defaultValue = "PENDING") val ocrState: OcrState = OcrState.PENDING,
 )
+
+enum class OcrState { PENDING, DONE, FAILED }
 
 @Entity(tableName = "collections")
 data class CollectionEntity(
@@ -94,3 +101,25 @@ data class BookmarkEntity(
     val note: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
 )
+
+/** Texto reconhecido (OCR) de uma página. pageId é INTEGER PRIMARY KEY = rowid do FTS. */
+@Entity(
+    tableName = "page_text",
+    foreignKeys = [ForeignKey(PageEntity::class, ["id"], ["pageId"], onDelete = ForeignKey.CASCADE)],
+    indices = [Index("bookId")],
+)
+data class PageTextEntity(
+    @PrimaryKey val pageId: Long,
+    val bookId: Long,
+    val text: String,
+    val processedAt: Long = System.currentTimeMillis(),
+)
+
+/** Índice de busca (FTS4) sobre [PageTextEntity], ignorando acentos. */
+@Fts4(
+    contentEntity = PageTextEntity::class,
+    tokenizer = FtsOptions.TOKENIZER_UNICODE61,
+    tokenizerArgs = ["remove_diacritics=1"],
+)
+@Entity(tableName = "page_text_fts")
+data class PageTextFts(val text: String)

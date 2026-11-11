@@ -85,3 +85,12 @@ Bug encontrado e corrigido: no fim da amostra, o Play Livros abre a tela de comp
 - [x] Captura de **um app só**: a bolha não aparece. Quadro de 1080×2340.
 - [x] Play Livros (100 páginas)
 - [x] Conferir as coordenadas de recorte dos 3 apps
+
+## Backlog
+
+- **Modo Turbo (ideia do usuário, 2026-11-11):** captura automática em ~1 s por página, em vez de ~3,5 s.
+  - Virar assim que a página estabilizar, sem intervalo fixo.
+  - Gravar/encodar em paralelo com a próxima virada.
+  - Intervalo mínimo menor.
+  - Estimativa: 100 páginas em ~2 min. Opcional e desligado por padrão, porque viradas muito rápidas aumentam o risco de detecção pelo serviço de leitura.
+  - Capturar o livro inteiro sem exibir as páginas é inviável: exigiria quebrar o DRM dos apps (art. 107 da Lei 9.610), o que está fora de questão.

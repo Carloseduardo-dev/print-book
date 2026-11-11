@@ -6,7 +6,12 @@ import com.printbook.app.data.db.dao.BookWithCover
 import com.printbook.app.data.db.dao.BookmarkDao
 import com.printbook.app.data.db.dao.CollectionDao
 import com.printbook.app.data.db.dao.EditorTransactions
+import com.printbook.app.data.db.dao.OcrProgress
 import com.printbook.app.data.db.dao.PageDao
+import com.printbook.app.data.db.dao.PageTextDao
+import com.printbook.app.data.db.dao.TextSearchHit
+import com.printbook.app.data.search.TextTools
+import com.printbook.app.work.WorkScheduler
 import com.printbook.app.data.db.entity.BookCollectionCrossRef
 import com.printbook.app.data.db.entity.BookEntity
 import com.printbook.app.data.db.entity.BookStatus
@@ -37,6 +42,8 @@ class BookRepository @Inject constructor(
     private val bookmarkDao: BookmarkDao,
     private val editor: EditorTransactions,
     private val files: PageFileStore,
+    private val pageText: PageTextDao,
+    private val work: WorkScheduler,
 ) {
     /** Serializa a inserção de páginas para manter as posições consecutivas. */
     private val insertLock = Mutex()
@@ -70,7 +77,25 @@ class BookRepository @Inject constructor(
     suspend fun setFavorite(id: Long, favorite: Boolean) = bookDao.setFavorite(id, favorite)
     suspend fun setProgress(id: Long, position: Int) = bookDao.setProgress(id, position)
     suspend fun setCover(id: Long, pageId: Long?) = bookDao.setCover(id, pageId)
-    suspend fun markReady(id: Long) = bookDao.setStatus(id, BookStatus.READY)
+    /** Conclui a captura e enfileira o OCR (busca no texto / voz alta). */
+    suspend fun markReady(id: Long) {
+        bookDao.setStatus(id, BookStatus.READY)
+        work.enqueueOcr(id)
+    }
+
+    // ---- Texto (OCR) e busca ----
+    fun observeOcrProgress(bookId: Long): Flow<OcrProgress> = pageText.observeProgress(bookId)
+    suspend fun pageText(pageId: Long): String? = pageText.textFor(pageId)
+
+    suspend fun searchText(input: String): List<TextSearchHit> {
+        val match = TextTools.ftsQuery(input) ?: return emptyList()
+        return runCatching { pageText.search(match) }.getOrDefault(emptyList())
+    }
+
+    suspend fun searchInBook(bookId: Long, input: String): List<TextSearchHit> {
+        val match = TextTools.ftsQuery(input) ?: return emptyList()
+        return runCatching { pageText.searchInBook(bookId, match) }.getOrDefault(emptyList())
+    }
 
     suspend fun deleteBook(id: Long) = withContext(Dispatchers.IO) {
         bookDao.delete(id)

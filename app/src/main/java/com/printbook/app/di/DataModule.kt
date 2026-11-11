@@ -29,6 +29,7 @@ object DataModule {
     @Provides fun provideCollectionDao(db: PrintBookDatabase) = db.collectionDao()
     @Provides fun provideBookmarkDao(db: PrintBookDatabase) = db.bookmarkDao()
     @Provides fun provideEditorTransactions(db: PrintBookDatabase) = db.editorTransactions()
+    @Provides fun providePageTextDao(db: PrintBookDatabase) = db.pageTextDao()
 
     @Provides
     @Singleton
