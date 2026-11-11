@@ -1,0 +1,139 @@
+package com.printbook.app.capture.projection
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.PixelFormat
+import android.hardware.display.DisplayManager
+import android.hardware.display.VirtualDisplay
+import android.media.Image
+import android.media.ImageReader
+import android.media.projection.MediaProjection
+import android.os.Handler
+import android.os.HandlerThread
+import android.util.Log
+import android.view.WindowManager
+import kotlinx.coroutines.delay
+
+/**
+ * Uma sessão = um MediaProjection + UM VirtualDisplay + ImageReader (regra do Android 14+:
+ * o token não pode ser reutilizado nem createVirtualDisplay chamado duas vezes).
+ *
+ * O listener consome todos os quadros (para o produtor nunca travar) e guarda só o mais recente.
+ */
+class ProjectionSession(
+    private val context: Context,
+    private val projection: MediaProjection,
+    private val onStopped: () -> Unit,
+) {
+    private val thread = HandlerThread("printbook-projection").apply { start() }
+    private val handler = Handler(thread.looper)
+    private val lock = Any()
+
+    private var reader: ImageReader? = null
+    private var display: VirtualDisplay? = null
+    private var latest: Image? = null
+    private var latestArrivalNs = 0L
+    private var released = false
+
+    var width = 0; private set
+    var height = 0; private set
+
+    private val callback = object : MediaProjection.Callback() {
+        override fun onStop() {
+            Log.i(TAG, "MediaProjection parada pelo sistema/usuário")
+            release()
+            onStopped()
+        }
+
+        override fun onCapturedContentResize(width: Int, height: Int) {
+            // Captura de app único (Android 14+): o conteúdo pode ter tamanho diferente da tela.
+            handler.post { resize(width, height) }
+        }
+    }
+
+    fun start() {
+        projection.registerCallback(callback, handler)
+        val bounds = context.getSystemService(WindowManager::class.java).maximumWindowMetrics.bounds
+        width = bounds.width()
+        height = bounds.height()
+        val dpi = context.resources.displayMetrics.densityDpi
+        val r = newReader(width, height)
+        reader = r
+        display = projection.createVirtualDisplay(
+            "printbook-capture", width, height, dpi,
+            DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
+            r.surface, null, handler,
+        )
+    }
+
+    private fun newReader(w: Int, h: Int): ImageReader =
+        ImageReader.newInstance(w, h, PixelFormat.RGBA_8888, 3).apply {
+            setOnImageAvailableListener({ source ->
+                val img = try { source.acquireLatestImage() } catch (e: IllegalStateException) { null }
+                    ?: return@setOnImageAvailableListener
+                synchronized(lock) {
+                    latest?.close()
+                    latest = img
+                    latestArrivalNs = System.nanoTime()
+                }
+            }, handler)
+        }
+
+    private fun resize(w: Int, h: Int) {
+        if (released || w <= 0 || h <= 0 || (w == width && h == height)) return
+        Log.i(TAG, "Conteúdo capturado redimensionado para ${w}x$h")
+        val old = reader
+        val r = newReader(w, h)
+        display?.resize(w, h, context.resources.displayMetrics.densityDpi)
+        display?.surface = r.surface
+        reader = r
+        width = w
+        height = h
+        synchronized(lock) { latest?.close(); latest = null }
+        old?.close()
+    }
+
+    /**
+     * Devolve um Bitmap de um quadro que chegou depois de [sinceNs] (ex.: depois de esconder a bolha).
+     * Se nenhum quadro novo chegar até [timeoutMs] (tela estática), usa o mais recente.
+     */
+    suspend fun captureAfter(sinceNs: Long, timeoutMs: Long = 600): Bitmap? {
+        val deadline = System.nanoTime() + timeoutMs * 1_000_000
+        while (System.nanoTime() < deadline) {
+            synchronized(lock) {
+                val img = latest
+                if (img != null && latestArrivalNs >= sinceNs) return img.toBitmap()
+            }
+            delay(16)
+        }
+        synchronized(lock) { return latest?.toBitmap() }
+    }
+
+    private fun Image.toBitmap(): Bitmap {
+        val plane = planes[0]
+        val buffer = plane.buffer.apply { rewind() }
+        val pixelStride = plane.pixelStride
+        val rowPadding = plane.rowStride - pixelStride * width
+        val padded = Bitmap.createBitmap(width + rowPadding / pixelStride, height, Bitmap.Config.ARGB_8888)
+        padded.copyPixelsFromBuffer(buffer)
+        if (padded.width == width) return padded
+        val cropped = Bitmap.createBitmap(padded, 0, 0, width, height)
+        padded.recycle()
+        return cropped
+    }
+
+    fun release() {
+        if (released) return
+        released = true
+        synchronized(lock) { latest?.close(); latest = null }
+        display?.release()
+        reader?.close()
+        runCatching { projection.unregisterCallback(callback) }
+        runCatching { projection.stop() }
+        thread.quitSafely()
+    }
+
+    private companion object {
+        const val TAG = "ProjectionSession"
+    }
+}
