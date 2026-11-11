@@ -92,10 +92,11 @@ class CaptureService : LifecycleService() {
         stateHolder.update { it.copy(busy = true, warning = null) }
         lifecycleScope.launch {
             try {
+                // Suspende até alguns vsyncs depois de esconder a bolha; só então aceita quadros novos.
                 overlay?.setVisible(false)
-                val hiddenAt = System.nanoTime()
-                delay(HIDE_SETTLE_MS) // ~2+ quadros para a bolha sumir da composição
-                val bitmap = currentSession.captureAfter(hiddenAt)
+                delay(HIDE_SETTLE_MS)
+                // Tela estática não gera quadros novos: após o timeout usa o mais recente (já sem bolha).
+                val bitmap = currentSession.captureAfter(System.nanoTime(), timeoutMs = 250)
                 overlay?.setVisible(true)
 
                 if (bitmap == null) {
@@ -173,7 +174,8 @@ class CaptureService : LifecycleService() {
 
     companion object {
         private const val TAG = "CaptureService"
-        private const val HIDE_SETTLE_MS = 80L
+        /** Margem extra após os vsyncs, para a latência do compositor até o VirtualDisplay. */
+        private const val HIDE_SETTLE_MS = 32L
         private const val ACTION_START = "com.printbook.app.capture.START"
         private const val ACTION_STOP = "com.printbook.app.capture.STOP"
         private const val EXTRA_RESULT_CODE = "resultCode"
