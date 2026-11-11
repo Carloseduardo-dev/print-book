@@ -16,6 +16,7 @@ import com.printbook.app.capture.PageTurner
 import com.printbook.app.capture.analysis.AutoCaptureTrigger
 import com.printbook.app.capture.analysis.AutoTurnController
 import com.printbook.app.capture.analysis.FrameSignature
+import com.printbook.app.capture.overlay.AuraWindow
 import com.printbook.app.capture.overlay.BubbleContent
 import com.printbook.app.capture.overlay.OverlayWindowManager
 import com.printbook.app.capture.processing.PageProcessor
@@ -52,6 +53,7 @@ class CaptureService : LifecycleService() {
 
     private var session: ProjectionSession? = null
     private var overlay: OverlayWindowManager? = null
+    private var aura: AuraWindow? = null
     private var config: CaptureConfig? = null
     private var profile: CaptureProfile? = null
 
@@ -115,6 +117,9 @@ class CaptureService : LifecycleService() {
             val pages = books.getBook(cfg.bookId)?.pageCount ?: 0
             stateHolder.update { it.copy(bookPages = pages) }
         }
+
+        // Aura de captura: janela própria, intocável, só visível durante a varredura pós-salvamento.
+        aura = AuraWindow(this).also { runCatching { it.show() } }
 
         overlay = OverlayWindowManager(this).also { manager ->
             manager.show { onDrag ->
@@ -274,6 +279,7 @@ class CaptureService : LifecycleService() {
             // Esconde a bolha e espera o compositor tirá-la da tela; só aceita quadros que
             // chegarem depois disso. Tela estática não gera quadros novos: após o timeout usa o
             // mais recente, que já é a composição sem a bolha.
+            aura?.hideNow() // nunca deixar a aura entrar na imagem
             overlay?.setVisible(false)
             delay(HIDE_SETTLE_MS)
             val frame = withTimeoutOrNull(CAPTURE_TIMEOUT_MS) {
@@ -334,6 +340,7 @@ class CaptureService : LifecycleService() {
             )
         }
         updateNotification(stateHolder.state.value.captured)
+        aura?.flash() // confirma "salvou" depois que o quadro já foi capturado
         return Outcome.SAVED
     }
 
@@ -348,6 +355,8 @@ class CaptureService : LifecycleService() {
         autoJob?.cancel()
         autoJob = null
         overlay?.dismiss()
+        aura?.dismiss()
+        aura = null
         overlay = null
         val hadSession = session != null
         session?.release()
@@ -366,6 +375,8 @@ class CaptureService : LifecycleService() {
     override fun onDestroy() {
         autoJob?.cancel()
         overlay?.dismiss()
+        aura?.dismiss()
+        aura = null
         session?.release()
         stateHolder.update { it.copy(running = false, busy = false, autoActive = false) }
         super.onDestroy()

@@ -1,5 +1,13 @@
 package com.printbook.app.ui.library
 
+import com.printbook.app.ui.components.auraOnFocus
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.focus.onFocusChanged
+import com.printbook.app.ui.components.auraBorder
+import com.printbook.app.ui.theme.MonoMeta
+import com.printbook.app.ui.theme.PrintBook
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -71,6 +79,7 @@ data class LibraryUiState(
     val loaded: Boolean = false,
     val books: List<BookWithCover> = emptyList(),
     val totalBooks: Int = 0,
+    val totalPages: Int = 0,
     val collections: List<CollectionEntity> = emptyList(),
     val selectedCollection: Long? = null,
     val favoritesOnly: Boolean = false,
@@ -102,7 +111,11 @@ class LibraryViewModel @Inject constructor(
             LibrarySort.TITLE -> filtered.sortedBy { BookRepository.sortKey(it.title) }
             LibrarySort.ADDED -> filtered.sortedByDescending { it.createdAt }
         }
-        LibraryUiState(true, sorted, all.size, cols, col, s.favoritesOnly, q, s.librarySort, s.libraryLayout)
+        LibraryUiState(
+            loaded = true, books = sorted, totalBooks = all.size, totalPages = all.sumOf { it.pageCount },
+            collections = cols, selectedCollection = col, favoritesOnly = s.favoritesOnly, query = q,
+            sort = s.librarySort, layout = s.libraryLayout,
+        )
     }.combine(
         query.debounce(300).mapLatest { q -> if (q.trim().length >= 2) books.searchText(q) else emptyList() },
     ) { s, hits -> s.copy(textHits = hits) }
@@ -164,13 +177,28 @@ fun LibraryScreen(
             return
         }
 
+        Text(
+            "${state.totalBooks} livros · ${state.totalPages} páginas",
+            style = MonoMeta, color = PrintBook.tokens.subtle,
+            modifier = Modifier.padding(horizontal = 16.dp),
+        )
         OutlinedTextField(
             value = state.query,
             onValueChange = viewModel::setQuery,
             leadingIcon = { Icon(Icons.Outlined.Search, null) },
             placeholder = { Text("Buscar por título ou no texto") },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color.Transparent,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .auraOnFocus(cornerRadius = 14.dp),
         )
         LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             item {

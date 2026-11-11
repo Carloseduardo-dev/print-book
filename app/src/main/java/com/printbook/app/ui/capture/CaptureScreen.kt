@@ -1,5 +1,13 @@
 package com.printbook.app.ui.capture
 
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import com.printbook.app.ui.components.auraOnFocus
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.unit.sp
+import com.printbook.app.ui.theme.MonoMeta
+import com.printbook.app.ui.theme.PrintBook
 import android.Manifest
 import android.app.Activity
 import android.content.Context
@@ -187,7 +195,9 @@ fun CaptureScreen(
                                     label = { Text("Nome do novo print-book") },
                                     placeholder = { Text("Ex.: Cálculo vol. 2") },
                                     singleLine = true,
-                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(14.dp),
+                                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = androidx.compose.ui.graphics.Color.Transparent),
+                                    modifier = Modifier.fillMaxWidth().auraOnFocus(cornerRadius = 14.dp),
                                 )
                                 Text("App de leitura", style = MaterialTheme.typography.bodyMedium)
                                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -212,18 +222,32 @@ fun CaptureScreen(
                                         selected = settings.captureMode == mode,
                                         onClick = { viewModel.setMode(mode) },
                                         shape = SegmentedButtonDefaults.itemShape(i, modes.size),
-                                    ) { Text(mode.label) }
+                                    ) {
+                                        Text(
+                                            when (mode) {
+                                                CaptureMode.MANUAL -> "Manual"
+                                                CaptureMode.SEMI_AUTO -> "Semi"
+                                                CaptureMode.AUTO -> "Auto"
+                                            },
+                                            maxLines = 1,
+                                        )
+                                    }
                                 }
                             }
                             Text(settings.captureMode.description, style = MaterialTheme.typography.bodySmall)
-                            if (settings.captureMode == CaptureMode.AUTO) {
-                                Text(
-                                    "Intervalo de ${settings.autoIntervalMs / 1000.0}s entre páginas · " +
-                                        if (settings.maxPagesPerSession > 0) "até ${settings.maxPagesPerSession} páginas" else "sem limite",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
+                            TerminalSummary(
+                                buildList {
+                                    add("$ " + when (settings.captureMode) {
+                                        CaptureMode.AUTO -> "auto --intervalo ${settings.autoIntervalMs / 1000.0}s --limite " +
+                                            (if (settings.maxPagesPerSession > 0) "${settings.maxPagesPerSession}" else "∞")
+                                        CaptureMode.SEMI_AUTO -> "semi --ao-estabilizar"
+                                        CaptureMode.MANUAL -> "manual --toque"
+                                    })
+                                    add((if (settings.autoCrop) "✓" else "·") + " recorte de barras e margens")
+                                    add((if (settings.skipDuplicates) "✓" else "·") + " ignorar páginas repetidas")
+                                    add("✓ qualidade " + settings.pageQuality.label.lowercase())
+                                },
+                            )
                             HorizontalDivider()
                             SwitchRow("Recortar barras e margens", settings.autoCrop, viewModel::setAutoCrop)
                             SwitchRow("Ignorar páginas repetidas", settings.skipDuplicates, viewModel::setSkipDuplicates)
@@ -342,6 +366,25 @@ private fun AutomationCard(available: Boolean, onEnable: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
             )
             if (!available) TextButton(onClick = onEnable) { Text("Ativar") }
+        }
+    }
+}
+
+@Composable
+private fun TerminalSummary(lines: List<String>) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+    ) {
+        lines.forEach { line ->
+            Text(
+                line,
+                style = MonoMeta.copy(lineHeight = 19.sp),
+                color = if (line.startsWith("✓")) PrintBook.tokens.success else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

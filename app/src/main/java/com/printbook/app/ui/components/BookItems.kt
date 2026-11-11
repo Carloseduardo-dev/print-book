@@ -1,5 +1,9 @@
 package com.printbook.app.ui.components
 
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.graphics.StrokeCap
+import com.printbook.app.ui.theme.MonoMeta
+import com.printbook.app.ui.theme.PrintBook
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -28,8 +32,22 @@ fun formatBytes(bytes: Long): String = when {
     else -> "${bytes / 1024} KB"
 }
 
+/** Barra de progresso de leitura fina (3dp) no acento cobre. */
+@Composable
+fun ReadingBar(progress: Float, modifier: Modifier = Modifier) {
+    LinearProgressIndicator(
+        progress = { progress },
+        modifier = modifier.fillMaxWidth().height(3.dp),
+        color = MaterialTheme.colorScheme.primary,
+        trackColor = MaterialTheme.colorScheme.outline,
+        strokeCap = StrokeCap.Round,
+        gapSize = 0.dp,
+        drawStopIndicator = {},
+    )
+}
+
 fun BookWithCover.subtitle(): String = buildString {
-    append("$pageCount págs.")
+    append("${pageCount}p")
     if (status == BookStatus.CAPTURING) append(" · em captura")
     else if (lastReadAt != null) append(" · ${(progress() * 100).toInt()}%")
 }
@@ -41,11 +59,9 @@ fun BookGridItem(book: BookWithCover, coverFile: File?, onClick: () -> Unit, mod
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         BookCover(coverFile, book.title, Modifier.fillMaxWidth(), isFavorite = book.isFavorite)
-        if (book.lastReadAt != null && book.pageCount > 1) {
-            LinearProgressIndicator(progress = { book.progress() }, modifier = Modifier.fillMaxWidth())
-        }
+        if (book.lastReadAt != null && book.pageCount > 1) ReadingBar(book.progress())
         Text(book.title, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        Text(book.subtitle(), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(book.subtitle(), style = MonoMeta, color = PrintBook.tokens.subtle)
     }
 }
 
@@ -60,13 +76,11 @@ fun BookListItem(book: BookWithCover, coverFile: File?, onClick: () -> Unit, mod
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(book.title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(
-                "${book.sourceApp.label} · ${book.subtitle()} · ${formatBytes(book.totalBytes)}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                "${book.sourceApp.label.lowercase()} · ${book.subtitle()} · ${formatBytes(book.totalBytes)}",
+                style = MonoMeta,
+                color = PrintBook.tokens.subtle,
             )
-            if (book.lastReadAt != null && book.pageCount > 1) {
-                LinearProgressIndicator(progress = { book.progress() }, modifier = Modifier.fillMaxWidth())
-            }
+            if (book.lastReadAt != null && book.pageCount > 1) ReadingBar(book.progress())
         }
     }
 }

@@ -1,5 +1,10 @@
 package com.printbook.app.ui.reader
 
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import com.printbook.app.ui.components.auraOnFocus
+import androidx.compose.ui.unit.sp
+import com.printbook.app.ui.theme.MonoMeta
 import android.app.Activity
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -303,8 +308,9 @@ private fun ReaderContent(state: ReaderUiState, book: BookEntity, viewModel: Rea
                     }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            "Página ${pagerState.currentPage + 1} / ${pages.size}",
-                            style = MaterialTheme.typography.labelLarge,
+                            "p. ${pagerState.currentPage + 1} / ${pages.size}",
+                            style = MonoMeta.copy(fontSize = 12.sp),
+                            maxLines = 1,
                             modifier = Modifier.weight(1f),
                         )
                         IconButton(onClick = { scope.launch { zoomStates[pagerState.currentPage]?.zoomBy(zoomFactor = 1f / 1.5f) } }) {
@@ -356,7 +362,9 @@ private fun BookSearchSheet(
                 placeholder = { Text("Buscar neste livro") },
                 leadingIcon = { Icon(Icons.Outlined.Search, null) },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color.Transparent),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).auraOnFocus(cornerRadius = 14.dp),
             )
             if (query.trim().length >= 2) {
                 Text(

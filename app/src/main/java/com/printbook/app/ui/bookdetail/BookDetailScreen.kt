@@ -1,5 +1,8 @@
 package com.printbook.app.ui.bookdetail
 
+import androidx.compose.ui.unit.sp
+import com.printbook.app.ui.theme.MonoMeta
+import com.printbook.app.ui.theme.PrintBook
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -172,8 +175,10 @@ fun BookDetailScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(book.title, style = MaterialTheme.typography.headlineSmall)
                     book.author?.let { Text(it, style = MaterialTheme.typography.titleMedium) }
-                    Text("${book.pageCount} páginas · ${formatBytes(book.totalBytes)}", style = MaterialTheme.typography.bodyMedium)
-                    Text("Capturado do ${book.sourceApp.label}", style = MaterialTheme.typography.bodySmall)
+                    Text(
+                        "origem   ${book.sourceApp.label.lowercase()}\npáginas  ${book.pageCount}\ntamanho  ${formatBytes(book.totalBytes)}",
+                        style = MonoMeta.copy(lineHeight = 19.sp), color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     if (book.status == BookStatus.CAPTURING) {
                         Text("Captura em andamento", color = MaterialTheme.colorScheme.tertiary, style = MaterialTheme.typography.labelLarge)
                     }
@@ -195,10 +200,10 @@ fun BookDetailScreen(
                     val indexed = ocr.done + ocr.failed
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
-                            if (indexed >= ocr.total) "Texto indexado: busca e leitura em voz alta disponíveis"
-                            else "Indexando texto: $indexed/${ocr.total} páginas",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            if (indexed >= ocr.total) "● ocr ✓ ${ocr.done}/${ocr.total} · busca no texto disponível"
+                            else "○ indexando texto · $indexed/${ocr.total}",
+                            style = MonoMeta,
+                            color = if (indexed >= ocr.total) PrintBook.tokens.success else PrintBook.tokens.subtle,
                         )
                         if (indexed < ocr.total) {
                             LinearProgressIndicator(progress = { indexed.toFloat() / ocr.total }, modifier = Modifier.fillMaxWidth())

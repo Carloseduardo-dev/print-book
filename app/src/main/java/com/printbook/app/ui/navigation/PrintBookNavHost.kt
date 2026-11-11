@@ -1,21 +1,21 @@
 package com.printbook.app.ui.navigation
 
+import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.LibraryBooks
-import androidx.compose.material.icons.outlined.CameraAlt
-import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import com.printbook.app.ui.theme.PrintBook
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -39,14 +39,14 @@ private data class TopLevelTab(
     val route: Any,
     val routeClass: KClass<*>,
     @StringRes val label: Int,
-    val icon: ImageVector,
+    @DrawableRes val icon: Int,
 )
 
 private val tabs = listOf(
-    TopLevelTab(HomeRoute, HomeRoute::class, R.string.tab_home, Icons.Outlined.Home),
-    TopLevelTab(LibraryRoute, LibraryRoute::class, R.string.tab_library, Icons.AutoMirrored.Outlined.LibraryBooks),
-    TopLevelTab(CaptureRoute, CaptureRoute::class, R.string.tab_capture, Icons.Outlined.CameraAlt),
-    TopLevelTab(SettingsRoute, SettingsRoute::class, R.string.tab_settings, Icons.Outlined.Settings),
+    TopLevelTab(HomeRoute, HomeRoute::class, R.string.tab_home, R.drawable.ic_tab_home),
+    TopLevelTab(LibraryRoute, LibraryRoute::class, R.string.tab_library, R.drawable.ic_tab_library),
+    TopLevelTab(CaptureRoute, CaptureRoute::class, R.string.tab_capture, R.drawable.ic_pb_capture),
+    TopLevelTab(SettingsRoute, SettingsRoute::class, R.string.tab_settings, R.drawable.ic_tab_settings),
 )
 
 @Composable
@@ -59,13 +59,20 @@ fun PrintBookNavHost() {
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
-                NavigationBar {
+                NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
                     tabs.forEach { tab ->
                         val selected = destination?.hierarchy?.any { it.hasRoute(tab.routeClass) } == true
                         NavigationBarItem(
                             selected = selected,
                             onClick = { navController.navigateToTab(tab.route) },
-                            icon = { Icon(tab.icon, contentDescription = null) },
+                            icon = { Icon(painterResource(tab.icon), contentDescription = null) },
+                            colors = NavigationBarItemDefaults.colors(
+                                indicatorColor = MaterialTheme.colorScheme.primaryContainer,
+                                selectedIconColor = MaterialTheme.colorScheme.onSurface,
+                                selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                                unselectedIconColor = PrintBook.tokens.subtle,
+                                unselectedTextColor = PrintBook.tokens.subtle,
+                            ),
                             label = { Text(stringResource(tab.label)) },
                         )
                     }

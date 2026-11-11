@@ -1,5 +1,16 @@
 package com.printbook.app.ui.home
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CardDefaults
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
+import com.printbook.app.R
+import com.printbook.app.ui.components.cropCorners
+import com.printbook.app.ui.components.ReadingBar
+import com.printbook.app.ui.theme.MonoLabel
+import com.printbook.app.ui.theme.MonoMeta
+import com.printbook.app.ui.theme.PrintBook
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -85,7 +96,10 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         item {
-            Text("Início", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 16.dp))
+            Column(Modifier.padding(horizontal = 16.dp)) {
+                Text("// ${greeting()}", style = MonoMeta, color = PrintBook.tokens.subtle)
+                Text("Início", style = MaterialTheme.typography.headlineMedium)
+            }
         }
         state.recentlyRead.firstOrNull()?.let { current ->
             item {
@@ -99,12 +113,22 @@ fun HomeScreen(
             item { Shelf("Adicionados recentemente", state.recentlyAdded, viewModel::coverFile, onOpenBook) }
         }
         item {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.Center) {
-                ExtendedFloatingActionButton(
-                    onClick = onStartCapture,
-                    icon = { Icon(Icons.Outlined.CameraAlt, contentDescription = null) },
-                    text = { Text("Capturar novo livro") },
-                )
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(14.dp))
+                    .clickable(onClick = onStartCapture)
+                    .padding(14.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(painterResource(R.drawable.ic_pb_capture), contentDescription = null)
+                Column {
+                    Text("Capturar novo livro", style = MaterialTheme.typography.titleSmall)
+                    Text("abra o leitor → ▶ na bolha", style = MonoMeta, color = PrintBook.tokens.subtle)
+                }
             }
         }
     }
@@ -112,17 +136,31 @@ fun HomeScreen(
 
 @Composable
 private fun ContinueReadingCard(book: BookWithCover, cover: File?, onClick: () -> Unit) {
-    Card(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).clickable(onClick = onClick)) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).clickable(onClick = onClick),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
         Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            BookCover(cover, book.title, Modifier.width(88.dp), isFavorite = book.isFavorite)
+            BookCover(
+                cover, book.title,
+                Modifier.padding(5.dp).width(78.dp).cropCorners(MaterialTheme.colorScheme.primary),
+                isFavorite = book.isFavorite,
+            )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Continuar lendo", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Text("CONTINUAR LENDO", style = MonoLabel, color = MaterialTheme.colorScheme.primary)
                 Text(book.title, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text("Página ${book.lastReadPosition + 1} de ${book.pageCount}", style = MaterialTheme.typography.bodyMedium)
-                LinearProgressIndicator(progress = { book.progress() }, modifier = Modifier.fillMaxWidth())
+                Text("p. ${book.lastReadPosition + 1}/${book.pageCount} · ${(book.progress() * 100).toInt()}%", style = MonoMeta, color = PrintBook.tokens.subtle)
+                ReadingBar(book.progress())
             }
         }
     }
+}
+
+private fun greeting(): String = when (java.time.LocalTime.now().hour) {
+    in 5..11 -> "bom dia"
+    in 12..17 -> "boa tarde"
+    else -> "boa noite"
 }
 
 @Composable

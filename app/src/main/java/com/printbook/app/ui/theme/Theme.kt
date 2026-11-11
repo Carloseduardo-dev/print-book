@@ -1,58 +1,108 @@
 package com.printbook.app.ui.theme
 
-import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+private val LightColors = lightColorScheme(
+    primary = Copper,
+    onPrimary = PaperSurface,
+    primaryContainer = CopperSoft,
+    onPrimaryContainer = Ink,
+    secondary = Ink,
+    onSecondary = PaperSurface,
+    secondaryContainer = PaperSurface2,
+    onSecondaryContainer = Ink,
+    tertiary = Copper,
+    background = Paper,
+    onBackground = Ink,
+    surface = PaperSurface,
+    onSurface = Ink,
+    surfaceVariant = PaperSurface2,
+    onSurfaceVariant = Ink2,
+    surfaceContainerLowest = PaperSurface,
+    surfaceContainerLow = PaperSurface,
+    surfaceContainer = Paper,
+    surfaceContainerHigh = PaperSurface2,
+    surfaceContainerHighest = PaperSurface2,
+    outline = LineLight,
+    outlineVariant = LineLight,
+    error = WarnLight,
+    tertiaryContainer = CopperSoft,
 )
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+private val DarkColors = darkColorScheme(
+    primary = CopperDark,
+    onPrimary = Ink,
+    primaryContainer = CopperSoftDark,
+    onPrimaryContainer = PaperText,
+    secondary = PaperText,
+    onSecondary = InkBg,
+    secondaryContainer = InkSurface2,
+    onSecondaryContainer = PaperText,
+    tertiary = CopperDark,
+    background = InkBg,
+    onBackground = PaperText,
+    surface = InkSurface,
+    onSurface = PaperText,
+    surfaceVariant = InkSurface2,
+    onSurfaceVariant = PaperText2,
+    surfaceContainerLowest = InkBg,
+    surfaceContainerLow = InkSurface,
+    surfaceContainer = InkSurface,
+    surfaceContainerHigh = InkSurface2,
+    surfaceContainerHighest = InkSurface2,
+    outline = LineDark,
+    outlineVariant = LineDark,
+    error = WarnDark,
+    tertiaryContainer = CopperSoftDark,
 )
 
+/** Tokens do design que não existem no Material 3. */
+@Immutable
+data class PrintBookTokens(
+    val subtle: Color,
+    val success: Color,
+    val readerBackground: Color,
+    val aura: List<Color>,
+    val isDark: Boolean,
+)
+
+val LocalPrintBookTokens = staticCompositionLocalOf {
+    PrintBookTokens(Ink3, OkLight, ReaderBgLight, AuraLight, false)
+}
+
+object PrintBook {
+    val tokens: PrintBookTokens
+        @Composable get() = LocalPrintBookTokens.current
+}
+
+/**
+ * Tema do print-book (design 1B). Cor dinâmica (Material You) desligada por padrão para manter
+ * a identidade: papel/tinta/cobre.
+ */
 @Composable
 fun PrintBookTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
+    @Suppress("UNUSED_PARAMETER") dynamicColor: Boolean = false,
+    content: @Composable () -> Unit,
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+    val tokens = if (darkTheme) {
+        PrintBookTokens(PaperText3, OkDark, ReaderBgDark, AuraDark, true)
+    } else {
+        PrintBookTokens(Ink3, OkLight, ReaderBgLight, AuraLight, false)
     }
-
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    CompositionLocalProvider(LocalPrintBookTokens provides tokens) {
+        MaterialTheme(
+            colorScheme = if (darkTheme) DarkColors else LightColors,
+            typography = Typography,
+            content = content,
+        )
+    }
 }

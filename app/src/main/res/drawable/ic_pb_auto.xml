@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Iconografia própria print-book (design 1B): grade 24dp, traço 1,6. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24"
+    android:tint="?attr/colorControlNormal">
+    <path android:strokeColor="#FF000000" android:strokeWidth="1.6" android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000" android:pathData="M4,8V4h4M16,4h4v4M20,16v4h-4M8,20H4v-4" />
+    <path android:fillColor="#FF000000" android:pathData="M10,9l5,3l-5,3z" />
+</vector>

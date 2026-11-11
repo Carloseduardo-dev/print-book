@@ -1,5 +1,6 @@
 package com.printbook.app.ui.components
 
+import com.printbook.app.ui.theme.MonoMeta
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -43,7 +44,7 @@ fun SearchHitItem(hit: TextSearchHit, showBook: Boolean, onClick: () -> Unit, mo
     ) {
         Text(
             if (showBook) "${hit.bookTitle} · pág. ${hit.position + 1}" else "Página ${hit.position + 1}",
-            style = MaterialTheme.typography.labelLarge,
+            style = MonoMeta,
             color = MaterialTheme.colorScheme.primary,
         )
         Text(
