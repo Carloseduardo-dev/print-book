@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>print-book · 1B · Fonte A · Geist</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F3EEE4; --surface:#FBF8F2; --surface-2:#EBE4D6; --ink:#1C1A16; --ink-2:#5B554A; --ink-3:#8C8576;
+  --line:#D9D0BE; --accent:#B0602C; --accent-soft:#F1DCC9; --ok:#4E7A4B; --warn:#B4452F;
+  --page-bg:#FFFDF8; --reader-bg:#1B1915; --shadow:0 1px 0 rgba(0,0,0,.04),0 8px 24px rgba(60,40,10,.08);
+  --serif:'Geist',system-ui,sans-serif; --sans:'Geist',system-ui,sans-serif; --mono:'Geist Mono',ui-monospace,monospace;
+}
+:root[data-theme="dark"]{
+  --paper:#14130F; --surface:#1D1B16; --surface-2:#26231D; --ink:#ECE5D6; --ink-2:#B5AC9A; --ink-3:#827A6A;
+  --line:#34302A; --accent:#D58E55; --accent-soft:#3A2A1C; --ok:#8DB486; --warn:#E07A62;
+  --page-bg:#E9E2D2; --reader-bg:#0E0D0B; --shadow:0 1px 0 rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;transition:background .3s,color .3s}
+.wrap{max-width:1500px;margin:0 auto;padding:40px 28px 80px}
+header.top{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:24px;margin-bottom:36px}
+.eyebrow{font:500 12px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+h1{font:500 44px/1.05 var(--serif);letter-spacing:-.01em;margin-top:8px}
+.lede{max-width:640px;color:var(--ink-2);line-height:1.55;margin-top:10px}
+.toggle{font:500 13px var(--mono);background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:999px;padding:10px 16px;cursor:pointer}
+h2{font:500 26px var(--serif);margin:48px 0 6px}
+.sub{color:var(--ink-2);font-size:14px;margin-bottom:22px}
+.screens{display:flex;gap:28px;flex-wrap:wrap}
+.cap{font:12px var(--mono);color:var(--ink-3);margin:12px 4px 0}
+
+/* ---------- Phone ---------- */
+.phone{width:340px;height:736px;border-radius:38px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);overflow:hidden;position:relative;display:flex;flex-direction:column}
+.status{height:34px;flex:none;display:flex;justify-content:space-between;align-items:center;padding:0 22px;font:500 12px var(--mono);color:var(--ink-2)}
+.content{flex:1;overflow:hidden;padding:4px 18px 0;position:relative}
+.tabbar{height:70px;flex:none;border-top:1px solid var(--line);display:flex;justify-content:space-around;align-items:center;background:var(--surface)}
+.tab{display:flex;flex-direction:column;align-items:center;gap:4px;font:500 10.5px var(--sans);color:var(--ink-3)}
+.tab svg{width:22px;height:22px}
+.tab.on{color:var(--ink)}
+.tab.on .ind{background:var(--accent-soft)}
+.ind{padding:4px 16px;border-radius:999px;display:flex}
+.title{font:500 28px var(--serif);margin:10px 0 2px}
+.meta{font:11.5px var(--mono);color:var(--ink-3)}
+.crop{position:relative}
+.crop::before,.crop::after,.crop>i::before,.crop>i::after{content:"";position:absolute;width:10px;height:10px;border-color:var(--accent);border-style:solid;opacity:.9}
+.crop::before{top:-5px;left:-5px;border-width:1.5px 0 0 1.5px}
+.crop::after{top:-5px;right:-5px;border-width:1.5px 1.5px 0 0}
+.crop>i::before{bottom:-5px;left:-5px;border-width:0 0 1.5px 1.5px}
+.crop>i::after{bottom:-5px;right:-5px;border-width:0 1.5px 1.5px 0}
+
+/* covers */
+.cover{border-radius:4px;aspect-ratio:2/3;position:relative;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.12),0 6px 14px rgba(40,25,5,.12)}
+.cover .t{position:absolute;left:10px;right:10px;bottom:12px;font:600 13px/1.15 var(--serif);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.25)}
+.cover .s{position:absolute;left:10px;top:10px;font:9px var(--mono);color:rgba(255,255,255,.75);letter-spacing:.06em;text-transform:uppercase}
+.c1{background:linear-gradient(160deg,#2F4A3F,#18261F)}
+.c2{background:linear-gradient(160deg,#8A4A26,#4A2410)}
+.c3{background:linear-gradient(160deg,#2C3550,#141A2B)}
+.c4{background:linear-gradient(160deg,#6B6152,#36302A)}
+.c5{background:linear-gradient(160deg,#7E2F2F,#3D1414)}
+.c6{background:linear-gradient(160deg,#3E5B6D,#1C2C36)}
+.lines{position:absolute;inset:34px 10px 46px;background:repeating-linear-gradient(transparent 0 6px,rgba(255,255,255,.14) 6px 7px)}
+
+/* home */
+.continue{margin-top:14px;background:var(--surface-2);border-radius:18px;padding:14px;display:flex;gap:14px;align-items:center}
+.continue .cover{width:74px;flex:none}
+.label{font:500 10.5px var(--mono);color:var(--accent);letter-spacing:.06em;text-transform:uppercase}
+.bt{font:500 18px/1.2 var(--serif);margin:4px 0 6px}
+.bar{height:3px;background:var(--line);border-radius:2px;overflow:hidden;margin-top:8px}
+.bar>b{display:block;height:100%;background:var(--accent)}
+.shelf-h{display:flex;justify-content:space-between;align-items:baseline;margin:22px 0 10px}
+.shelf-h h3{font:500 16px var(--serif)}
+.shelf{display:flex;gap:12px}
+.shelf .cover{width:86px;flex:none}
+.cta{margin-top:22px;border:1px dashed var(--line);border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;font-size:13px;color:var(--ink-2)}
+.cta b{color:var(--ink)}
+.kbd{font:11px var(--mono);border:1px solid var(--line);border-radius:5px;padding:2px 6px;color:var(--ink-2)}
+
+/* library */
+.search{margin-top:10px;display:flex;align-items:center;gap:8px;background:var(--surface-2);border-radius:12px;padding:10px 12px;font:13px var(--mono);color:var(--ink-3)}
+.chips{display:flex;gap:8px;margin:12px 0;flex-wrap:nowrap;overflow:hidden}
+.chip{font:500 12px var(--sans);border:1px solid var(--line);border-radius:8px;padding:6px 10px;white-space:nowrap;color:var(--ink-2)}
+.chip.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px 10px}
+.gi .n{font:500 11.5px/1.25 var(--sans);margin-top:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.gi .m{font:10px var(--mono);color:var(--ink-3);margin-top:2px}
+.hit{border-top:1px solid var(--line);padding:10px 0}
+.hit .h{font:500 11px var(--mono);color:var(--accent)}
+.hit p{font:13px/1.45 var(--serif);color:var(--ink-2);margin-top:3px}
+mark{background:var(--accent-soft);color:var(--ink);padding:0 2px;border-radius:2px}
+
+/* detail */
+.dtop{display:flex;gap:16px;margin-top:10px}
+.dtop .cover{width:118px;flex:none}
+.kv{margin-top:8px;font:11.5px/1.8 var(--mono);color:var(--ink-2)}
+.kv span{color:var(--ink-3)}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;border-radius:14px;padding:13px;font:600 14px var(--sans);margin-top:10px}
+.btn.p{background:var(--ink);color:var(--surface)}
+.btn.o{border:1px solid var(--line);color:var(--ink)}
+.status-line{margin-top:16px;font:11.5px var(--mono);color:var(--ok);display:flex;gap:8px;align-items:center}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor;box-shadow:0 0 0 3px color-mix(in srgb,currentColor 20%,transparent)}
+
+/* reader */
+.reader{background:var(--reader-bg)}
+.reader .status{color:#9b937f}
+.rpage{position:absolute;inset:34px 0 0;display:flex;align-items:center;justify-content:center}
+.paper{width:300px;height:560px;background:var(--page-bg);border-radius:2px;padding:26px 22px;font:10.5px/1.62 var(--serif);color:#2a2620;overflow:hidden}
+.paper h4{font:600 15px var(--serif);margin-bottom:8px}
+.paper p{margin-bottom:7px;text-align:justify}
+.chrome-t,.chrome-b{position:absolute;left:0;right:0;background:color-mix(in srgb,var(--reader-bg) 88%,transparent);backdrop-filter:blur(8px);color:#E8E0CF}
+.chrome-t{top:34px;height:52px;display:flex;align-items:center;gap:14px;padding:0 16px;font:500 14px var(--serif)}
+.chrome-t .sp{flex:1}
+.chrome-b{bottom:0;padding:12px 18px 18px}
+.scrub{height:2px;background:#3a352c;position:relative;margin:4px 0 14px}
+.scrub b{position:absolute;left:0;top:0;bottom:0;width:30%;background:var(--accent)}
+.scrub i{position:absolute;left:30%;top:-5px;width:2px;height:12px;background:var(--accent)}
+.rrow{display:flex;align-items:center;gap:16px;font:12px var(--mono);color:#b9b09c}
+.rrow .sp{flex:1}
+.rrow svg,.chrome-t svg{width:20px;height:20px}
+
+/* capture + bubble */
+.fake-app{position:absolute;inset:34px 0 0;background:#fff;padding:22px;font:11px/1.6 Georgia,serif;color:#333}
+:root[data-theme="dark"] .fake-app{background:#121212;color:#cfcfcf}
+.fake-app .fbar{position:absolute;left:0;right:0;top:0;height:40px;background:#e9e9e9;display:flex;align-items:center;padding:0 14px;font:12px var(--sans);color:#666}
+:root[data-theme="dark"] .fake-app .fbar{background:#222;color:#999}
+.bubble{position:absolute;left:12px;top:250px;width:64px;padding:8px 0;border-radius:20px;background:color-mix(in srgb,#1C1A16 92%,transparent);border:1px solid #3a352c;display:flex;flex-direction:column;align-items:center;gap:8px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.bubble .main{width:46px;height:46px;border-radius:14px;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#1C1A16}
+.bubble .cnt{font:600 12px var(--mono);color:#E8E0CF}
+.bubble .mini{width:34px;height:34px;border-radius:10px;border:1px solid #4a443a;display:flex;align-items:center;justify-content:center;color:#E8E0CF}
+.flash{position:absolute;inset:60px 30px 120px;border:1.5px solid var(--accent);border-radius:3px;opacity:.9}
+.flash::after{content:"página 48 salva · 142 KB";position:absolute;right:-1px;bottom:-26px;font:10.5px var(--mono);background:var(--accent);color:#1C1A16;padding:3px 7px;border-radius:3px}
+.cfg{margin-top:6px}
+.card{border:1px solid var(--line);border-radius:16px;padding:14px;margin-top:12px;background:var(--surface)}
+.card h5{font:500 15px var(--serif);margin-bottom:8px}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;font:500 12px var(--sans)}
+.seg div{flex:1;text-align:center;padding:8px 0;color:var(--ink-2)}
+.seg .on{background:var(--ink);color:var(--surface)}
+.term{font:11px/1.7 var(--mono);background:var(--surface-2);border-radius:10px;padding:10px 12px;color:var(--ink-2);margin-top:10px}
+.term b{color:var(--ok);font-weight:500}
+.sticky{position:absolute;left:0;right:0;bottom:0;padding:12px 18px;background:var(--surface);border-top:1px solid var(--line)}
+
+/* icons / tokens */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:22px;padding:24px;box-shadow:var(--shadow)}
+.row{display:flex;gap:22px;flex-wrap:wrap}
+.appicon{width:150px;text-align:center}
+.appicon .a{width:120px;height:120px;border-radius:30px;margin:0 auto;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.appicon p{font:12px var(--mono);color:var(--ink-3);margin-top:10px}
+.appicon.pick .a{outline:2px solid var(--accent);outline-offset:4px}
+.iconset{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px}
+.ic{border:1px solid var(--line);border-radius:14px;padding:14px 8px;text-align:center;color:var(--ink)}
+.ic svg{width:26px;height:26px}
+.ic p{font:10.5px var(--mono);color:var(--ink-3);margin-top:8px}
+.swatches{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.sw{border:1px solid var(--line);border-radius:14px;overflow:hidden;font:11px var(--mono)}
+.sw div{height:56px}
+.sw p{padding:8px 10px;color:var(--ink-2)}
+.type p{margin:6px 0}
+
+/* ---------- Aura (gradiente animado da marca) ---------- */
+@property --ang{syntax:'<angle>';inherits:false;initial-value:0deg}
+:root{--aura:conic-gradient(from var(--ang),#B0602C,#E0A040,#C8566A,#7A5AC8,#3E8C7A,#B0602C)}
+:root[data-theme="dark"]{--aura:conic-gradient(from var(--ang),#D58E55,#F2BE5C,#E07A8A,#9C82E8,#5FB59E,#D58E55)}
+@keyframes spin{to{--ang:360deg}}
+@keyframes sweep{0%{opacity:0;--ang:0deg}12%{opacity:1}75%{opacity:1}100%{opacity:0;--ang:300deg}}
+.aura-text{background:linear-gradient(90deg,#B0602C,#E0A040,#C8566A,#7A5AC8,#3E8C7A);-webkit-background-clip:text;background-clip:text;color:transparent}
+/* contorno de tela inteira ao salvar (a cada ciclo de 3,4 s, como no automático) */
+.aura-screen{position:absolute;inset:34px 0 0;pointer-events:none;border-radius:0 0 38px 38px;padding:3px;
+  background:var(--aura);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;
+  animation:sweep 3.4s cubic-bezier(.3,.6,.3,1) infinite;filter:saturate(1.1)}
+.aura-screen::after{content:"";position:absolute;inset:-6px;background:var(--aura);filter:blur(14px);opacity:.55;border-radius:inherit;
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;padding:10px;animation:inherit}
+/* bolha: borda girando no automático */
+.bubble.auto{border:none;padding:9px 0}
+.bubble.auto::before{content:"";position:absolute;inset:-2px;border-radius:22px;padding:2px;background:var(--aura);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:spin 2.6s linear infinite}
+.bubble.auto::after{content:"";position:absolute;inset:-8px;border-radius:28px;background:var(--aura);filter:blur(16px);opacity:.35;z-index:-1;animation:spin 2.6s linear infinite}
+/* campo de busca em foco */
+.search.glow{position:relative;background:var(--surface);isolation:isolate}
+.search.glow::before{content:"";position:absolute;inset:-1.5px;border-radius:13px;padding:1.5px;background:var(--aura);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:spin 6s linear infinite}
+.search.glow::after{content:"";position:absolute;inset:-4px -6px;border-radius:16px;background:var(--aura);filter:blur(12px);opacity:.28;z-index:-1;animation:spin 6s linear infinite}
+/* selo "salva" que acompanha a aura */
+.saved{position:absolute;left:50%;bottom:22px;transform:translateX(-50%);font:500 11px var(--mono);color:#1C1A16;background:#F3EEE4;border-radius:999px;padding:6px 12px;
+  box-shadow:0 6px 18px rgba(0,0,0,.25);animation:pop 3.4s ease infinite;white-space:nowrap}
+.saved b{color:#B0602C;font-weight:600}
+@keyframes pop{0%,8%{opacity:0;transform:translate(-50%,6px)}16%,70%{opacity:1;transform:translate(-50%,0)}85%,100%{opacity:0;transform:translate(-50%,-4px)}}
+/* storyboard */
+.story{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.frame{border:1px solid var(--line);border-radius:18px;padding:16px;background:var(--surface)}
+.frame .ph{height:170px;border-radius:12px;background:var(--surface-2);position:relative;overflow:hidden;margin-bottom:12px}
+.frame .ph .pg{position:absolute;inset:16px 34px;background:var(--page-bg);border-radius:2px;background-image:repeating-linear-gradient(transparent 0 9px,rgba(0,0,0,.08) 9px 10px);background-clip:content-box;padding:14px 12px}
+.frame h4{font:500 15px var(--serif)}
+.frame p{font-size:13px;color:var(--ink-2);margin-top:4px;line-height:1.5}
+.frame .t{font:11px var(--mono);color:var(--accent)}
+.ring-static{position:absolute;inset:10px 28px;border-radius:4px;padding:2px;background:conic-gradient(from 40deg,#B0602C,#E0A040,#C8566A,#7A5AC8,#3E8C7A,#B0602C);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+.ring-anim{position:absolute;inset:10px 28px;border-radius:4px;padding:2px;background:var(--aura);
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:sweep 3.4s ease infinite}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important}}
+h1,.title,.bt,.dtop div[style*='22px'],.shelf-h h3,h2{letter-spacing:-.025em}.title{font-weight:600}h1{font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header class="top">
+  <div>
+    <div class="eyebrow">print-book · direção 1B · fonte a · geist</div>
+    <h1>Ink &amp; Terminal <span class="aura-text">+ Aura</span></h1>
+    <p class="lede">Papel quente, tinta escura e um único acento cobre. A personalidade de desenvolvedor aparece nos detalhes: metadados em monoespaçada, linhas de status estilo terminal e os <b>cantos de recorte</b>, o motivo visual da captura, que marcam a capa atual, a bolha e o momento em que uma página é salva. Na leitura, a interface praticamente desaparece.<br><br><b>Novo na 1B, "Aura de captura":</b> um gradiente vivo, na paleta da marca (cobre → âmbar → terracota → violeta → verde-tinta), contorna a área capturada no momento em que a página é salva, gira na borda da bolha enquanto o modo automático trabalha e acende o campo de busca em foco. Movimento curto, sutil, só onde há ação. A aura é desenhada <i>depois</i> de o quadro ser capturado, então nunca aparece nas páginas salvas.</p>
+  </div>
+  <button class="toggle" onclick="t()">◐ alternar claro / escuro</button>
+</header>
+
+<h2>Telas</h2>
+<p class="sub">Referência: 1080×2340 (Galaxy A56), edge-to-edge, 4 abas.</p>
+<div class="screens">
+
+<!-- INÍCIO -->
+<div><div class="phone">
+  <div class="status"><span>09:41</span><span>offline ●</span></div>
+  <div class="content">
+    <div class="meta">// boa noite</div>
+    <div class="title">Início</div>
+    <div class="continue">
+      <div class="cover c2 crop"><i></i><span class="s">MB</span><div class="lines"></div><div class="t">Cálculo vol. 2</div></div>
+      <div style="flex:1">
+        <div class="label">continuar lendo</div>
+        <div class="bt">Cálculo vol. 2</div>
+        <div class="meta">p. 37/100 · 37%</div>
+        <div class="bar"><b style="width:37%"></b></div>
+      </div>
+    </div>
+    <div class="shelf-h"><h3>Lidos recentemente</h3><span class="meta">ver tudo →</span></div>
+    <div class="shelf">
+      <div class="cover c1"><span class="s">KDL</span><div class="lines"></div><div class="t">Clean Code</div></div>
+      <div class="cover c3"><span class="s">PLAY</span><div class="lines"></div><div class="t">Compose Essentials</div></div>
+      <div class="cover c4"><span class="s">KDL</span><div class="lines"></div><div class="t">Microsserviços</div></div>
+    </div>
+    <div class="shelf-h"><h3>Adicionados</h3><span class="meta">3 novos</span></div>
+    <div class="shelf">
+      <div class="cover c5"><span class="s">MB</span><div class="lines"></div><div class="t">Álgebra Linear</div></div>
+      <div class="cover c6"><span class="s">PLAY</span><div class="lines"></div><div class="t">Kotlin Moderno</div></div>
+      <div class="cover c2"><span class="s">MB</span><div class="lines"></div><div class="t">Física I</div></div>
+    </div>
+    <div class="cta"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><circle cx="12" cy="12" r="3"/></svg><div><b>Capturar novo livro</b><br><span class="meta">abra o leitor → ▶ na bolha</span></div></div>
+  </div>
+  <div class="tabbar">
+    <div class="tab on"><span class="ind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg></span>Início</div>
+    <div class="tab"><span class="ind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 4h3v16H5zM10 4h3v16h-3zM15.5 5l3-.8 3.6 15.2-3 .8z"/></svg></span>Biblioteca</div>
+    <div class="tab"><span class="ind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><circle cx="12" cy="12" r="3"/></svg></span>Capturar</div>
+    <div class="tab"><span class="ind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></span>Ajustes</div>
+  </div>
+</div><div class="cap">01 · início, "continuar lendo" com cantos de recorte</div></div>
+
+<!-- BIBLIOTECA (busca) -->
+<div><div class="phone">
+  <div class="status"><span>09:42</span><span>offline ●</span></div>
+  <div class="content">
+    <div class="title">Biblioteca</div>
+    <div class="meta">7 livros · 482 páginas · 99 MB</div>
+    <div class="search glow"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4"/></svg><span style="color:var(--ink)">euler</span><span style="margin-left:auto">11 ↵</span></div>
+    <div class="chips"><span class="chip on">Todos</span><span class="chip">★ Favoritos</span><span class="chip">Cálculo</span><span class="chip">Dev</span><span class="chip">+ coleção</span></div>
+    <div class="meta" style="margin:6px 0 4px">no texto das páginas · 11</div>
+    <div class="hit"><div class="h">Cálculo vol. 2 · p. 30</div><p>…aproximações arredondadas para 5 casas decimais: método de <mark>Euler</mark> para y′ = y − x…</p></div>
+    <div class="hit"><div class="h">Cálculo vol. 2 · p. 29</div><p>…de <mark>Euler</mark>, aponta como usar cada aproximação para calcular a próxima…</p></div>
+    <div class="hit"><div class="h">Cálculo vol. 2 · p. 31</div><p>…quando utilizamos o método de <mark>Euler</mark> no problema de valor inicial…</p></div>
+    <div class="meta" style="margin:14px 0 8px">títulos</div>
+    <div class="grid">
+      <div class="gi"><div class="cover c2"><span class="s">MB</span><div class="lines"></div></div><div class="n">Cálculo vol. 2</div><div class="m">100p · 37%</div></div>
+      <div class="gi"><div class="cover c5"><span class="s">MB</span><div class="lines"></div></div><div class="n">Álgebra Linear</div><div class="m">100p · novo</div></div>
+      <div class="gi"><div class="cover c1"><span class="s">KDL</span><div class="lines"></div></div><div class="n">Clean Code</div><div class="m">7p · 33%</div></div>
+    </div>
+  </div>
+  <div class="tabbar">
+    <div class="tab"><span class="ind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg></span>Início</div>
+    <div class="tab on"><span class="ind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 4h3v16H5zM10 4h3v16h-3zM15.5 5l3-.8 3.6 15.2-3 .8z"/></svg></span>Biblioteca</div>
+    <div class="tab"><span class="ind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><circle cx="12" cy="12" r="3"/></svg></span>Capturar</div>
+    <div class="tab"><span class="ind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></span>Ajustes</div>
+  </div>
+</div><div class="cap">02 · biblioteca: campo de busca com aura em foco + trecho destacado</div></div>
+
+<!-- DETALHE -->
+<div><div class="phone">
+  <div class="status"><span>09:43</span><span>offline ●</span></div>
+  <div class="content">
+    <div style="display:flex;justify-content:space-between;margin:8px 0 4px;color:var(--ink-2)"><span>←</span><span>☆ &nbsp; ✎ &nbsp; ⋯</span></div>
+    <div class="dtop">
+      <div class="cover c2 crop"><i></i><span class="s">MB</span><div class="lines"></div><div class="t">Cálculo vol. 2</div></div>
+      <div>
+        <div style="font:500 22px/1.15 var(--serif)">Cálculo vol. 2</div>
+        <div style="color:var(--ink-2);margin-top:4px;font-size:13px">Anton · Bivens · Davis</div>
+        <div class="kv"><span>origem</span> minha biblioteca<br><span>páginas</span> 100<br><span>tamanho</span> 18,5 MB<br><span>qualidade</span> máxima</div>
+      </div>
+    </div>
+    <div class="meta" style="margin-top:16px">p. 37 de 100</div>
+    <div class="bar"><b style="width:37%"></b></div>
+    <div class="btn p" style="margin-top:16px">Continuar lendo</div>
+    <div class="btn o">Editar páginas</div>
+    <div class="btn o">Coleções · Cálculo</div>
+    <div class="btn o">Exportar PDF</div>
+    <div class="status-line"><span class="dot"></span>ocr ✓ 100/100 · busca e texto disponíveis</div>
+  </div>
+</div><div class="cap">03 · detalhe: metadados em mono, status do OCR em linha de terminal</div></div>
+
+<!-- LEITOR -->
+<div><div class="phone reader">
+  <div class="status"><span>09:44</span><span>●</span></div>
+  <div class="rpage"><div class="paper">
+    <h4>8.3 Método de Euler</h4>
+    <p>Aqui está uma maneira de organizar as 10 aproximações arredondadas para 5 casas decimais. Observe que cada entrada na última coluna torna-se a próxima entrada na terceira coluna.</p>
+    <p>Isso é semelhante ao método de Newton, no qual cada aproximação sucessiva é usada para encontrar a seguinte. Assim, nesse caso, podemos comparar o valor aproximado de y(x) produzido pelo método de Euler com a aproximação decimal dos valores exatos.</p>
+    <p style="font-family:var(--mono);font-size:9.5px;background:#f2ede2;padding:8px;border-radius:2px">n  xₙ   yₙ       yₙ₊₁<br>0  0,0  2,00000  2,20000<br>1  0,1  2,20000  2,41000<br>2  0,2  2,41000  2,63100<br>3  0,3  2,63100  2,86410</p>
+    <p>Como procedimento prático, o erro absoluto em uma aproximação produzida pelo método de Euler é aproximadamente proporcional ao tamanho de passo. Assim, reduzindo o tamanho do passo pela metade reduzem-se os erros.</p>
+    <p>Observe que o erro absoluto tende a crescer quando x se afasta de x₀.</p>
+  </div></div>
+  <div class="chrome-t"><span>←</span><span>Cálculo vol. 2</span><span class="sp"></span>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M7 4h10v16l-5-4-5 4z"/></svg>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg>
+  </div>
+  <div class="chrome-b">
+    <div class="scrub"><b></b><i></i></div>
+    <div class="rrow"><span>p. 30 / 100</span><span class="sp"></span><span>−</span><span>⤢</span><span>+</span></div>
+  </div>
+</div><div class="cap">04 · leitor: cromo translúcido; some com um toque</div></div>
+
+<!-- CAPTURA (bolha) -->
+<div><div class="phone">
+  <div class="status"><span>09:45</span><span>⏺ compartilhando</span></div>
+  <div class="fake-app"><div class="fbar">app de leitura · capítulo 8</div>
+    <div style="margin-top:44px">
+      <p>Assim, nesse caso, podemos comparar o valor aproximado produzido pelo método com a aproximação decimal dos valores exatos. O erro absoluto é a diferença entre o valor exato e a aproximação.</p><br>
+      <p>Observe que o erro tende a crescer conforme x se afasta do ponto inicial, o que é típico de métodos de passo simples. Para reduzir o erro, diminuímos o passo.</p><br>
+      <p>Na próxima seção estudaremos os campos de direções e sua relação com as soluções de equações diferenciais de primeira ordem.</p>
+    </div>
+  </div>
+  <div class="aura-screen"></div>
+  <div class="saved">✓ página <b>48</b> salva · 142 KB</div>
+  <div class="bubble auto">
+    <div class="main"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h3v14H7zM14 5h3v14h-3z"/></svg></div>
+    <div class="cnt">48</div>
+    <div class="mini"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l5 5 9-10"/></svg></div>
+  </div>
+</div><div class="cap">05 · aura de captura: contorna a tela ao salvar; a bolha gira no automático</div></div>
+
+<!-- CAPTURAR (config) -->
+<div><div class="phone">
+  <div class="status"><span>09:46</span><span>offline ●</span></div>
+  <div class="content cfg">
+    <div class="title">Capturar</div>
+    <div class="card"><h5>Livro</h5>
+      <div class="search" style="margin:0;color:var(--ink)">Cálculo vol. 3</div>
+      <div class="chips" style="margin-bottom:0"><span class="chip">Kindle</span><span class="chip">Play Livros</span><span class="chip on">Minha Biblioteca</span></div>
+    </div>
+    <div class="card"><h5>Modo</h5>
+      <div class="seg"><div>Manual</div><div>Semi</div><div class="on">Automático</div></div>
+      <div class="term">$ auto --intervalo 2.5s --limite 500<br><b>✓</b> recorte de barras e margens<br><b>✓</b> ignorar páginas repetidas<br><b>✓</b> virada automática ativa</div>
+    </div>
+    <div class="card"><h5>Qualidade</h5><div class="seg"><div class="on">Máxima</div><div>Econômica</div></div><div class="meta" style="margin-top:8px">~180 KB/pág · ~18 MB/100</div></div>
+  </div>
+  <div class="sticky" style="bottom:70px"><div class="btn p" style="margin:0">Iniciar captura</div></div>
+  <div class="tabbar" style="margin-top:auto">
+    <div class="tab"><span class="ind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/></svg></span>Início</div>
+    <div class="tab"><span class="ind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 4h3v16H5zM10 4h3v16h-3zM15.5 5l3-.8 3.6 15.2-3 .8z"/></svg></span>Biblioteca</div>
+    <div class="tab on"><span class="ind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><circle cx="12" cy="12" r="3"/></svg></span>Capturar</div>
+    <div class="tab"><span class="ind"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></span>Ajustes</div>
+  </div>
+</div><div class="cap">06 · capturar: resumo da configuração em linha de comando</div></div>
+</div>
+
+
+<h2>Aura de captura: como se comporta</h2>
+<p class="sub">Movimento só onde há ação. A ordem garante que a aura nunca entre na imagem salva.</p>
+<div class="story">
+  <div class="frame"><div class="ph"><div class="pg"></div></div><div class="t">t = 0 ms</div><h4>1. Captura limpa</h4><p>A bolha some e o quadro é capturado sem nenhum efeito na tela. É esta imagem que vira a página do livro.</p></div>
+  <div class="frame"><div class="ph"><div class="pg"></div><div class="ring-anim"></div></div><div class="t">t ≈ 150–900 ms</div><h4>2. Aura percorre a borda</h4><p>O gradiente da marca contorna a área recortada (ou a tela inteira) e se apaga. Confirma "salvou" sem texto nem som.</p></div>
+  <div class="frame"><div class="ph"><div class="pg"></div><div class="ring-static" style="inset:60px 112px 40px;border-radius:14px"></div></div><div class="t">modo automático</div><h4>3. Bolha viva</h4><p>Enquanto o automático trabalha, a borda da bolha gira devagar. Parada = pausado. Âmbar fixo = aviso (página repetida, tela preta).</p></div>
+  <div class="frame"><div class="ph" style="display:flex;align-items:center;justify-content:center"><div class="search glow" style="width:80%;margin:0">⌕ <span style="color:var(--ink)">aproximação</span></div></div><div class="t">foco</div><h4>4. Busca acesa</h4><p>O mesmo gradiente, bem mais lento, marca o campo de busca em foco. É o único outro lugar onde a aura aparece, para não banalizar.</p></div>
+</div>
+<div class="panel" style="margin-top:16px">
+  <div class="type">
+    <p style="font:500 18px var(--serif)">Especificação da aura</p>
+    <p style="font:12.5px/1.8 var(--mono);color:var(--ink-2)">
+      cores (claro) &nbsp;#B0602C → #E0A040 → #C8566A → #7A5AC8 → #3E8C7A<br>
+      cores (escuro) #D58E55 → #F2BE5C → #E07A8A → #9C82E8 → #5FB59E<br>
+      borda 3dp + halo com blur de 14dp a 55% · varredura de 750 ms ease-out · giro da bolha em 2,6 s linear · busca em 6 s<br>
+      Compose: Brush.sweepGradient + rotação animada (InfiniteTransition) num overlay desenhado só após o frame salvo<br>
+      acessibilidade: "reduzir animações" do sistema → só um contorno estático de 400 ms
+    </p>
+  </div>
+</div>
+
+<h2>Ícone do app</h2>
+<p class="sub">Adaptive icon (108dp, área segura de 66dp) + versão monocromática (themed icon). Escolhido: <b>B · Página recortada</b>.</p>
+<div class="panel row">
+  <div class="appicon"><div class="a" style="background:#1C1A16"><svg width="76" height="76" viewBox="0 0 64 64" fill="none"><path d="M12 18c7-3 13-3 20 1 7-4 13-4 20-1v30c-7-3-13-3-20 1-7-4-13-4-20-1z" stroke="#F3EEE4" stroke-width="3" stroke-linejoin="round"/><path d="M32 19v30" stroke="#F3EEE4" stroke-width="3"/><circle cx="47" cy="17" r="5" fill="#D58E55"/></svg></div><p>A · livro + ponto de gravação</p></div>
+  <div class="appicon pick"><div class="a" style="background:#F3EEE4"><svg width="84" height="84" viewBox="0 0 64 64" fill="none"><rect x="20" y="14" width="24" height="34" rx="2" fill="#1C1A16"/><path d="M25 22h14M25 27h14M25 32h10" stroke="#F3EEE4" stroke-width="2" stroke-linecap="round"/><path d="M12 20v-8h8M44 12h8v8M52 44v8h-8M20 52h-8v-8" stroke="#B0602C" stroke-width="3.2" stroke-linecap="round"/></svg></div><p>B · página recortada ✓</p></div>
+  <div class="appicon"><div class="a" style="background:#B0602C"><svg width="80" height="80" viewBox="0 0 64 64" fill="none"><path d="M22 12h20v40l-10-8-10 8z" fill="#1C1A16"/><circle cx="32" cy="26" r="7" stroke="#F3EEE4" stroke-width="2.5"/><path d="M32 19v4M39 26h-4M32 33v-4M25 26h4" stroke="#F3EEE4" stroke-width="2.5" stroke-linecap="round"/></svg></div><p>C · marcador-obturador</p></div>
+  <div class="appicon"><div class="a" style="background:#1C1A16"><svg width="84" height="84" viewBox="0 0 64 64" fill="none"><defs><linearGradient id="ag" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#D58E55"/><stop offset=".3" stop-color="#F2BE5C"/><stop offset=".55" stop-color="#E07A8A"/><stop offset=".8" stop-color="#9C82E8"/><stop offset="1" stop-color="#5FB59E"/></linearGradient></defs><rect x="20" y="14" width="24" height="34" rx="2" fill="#F3EEE4"/><path d="M25 22h14M25 27h14M25 32h10" stroke="#1C1A16" stroke-width="2" stroke-linecap="round"/><path d="M12 20v-8h8M44 12h8v8M52 44v8h-8M20 52h-8v-8" stroke="url(#ag)" stroke-width="3.4" stroke-linecap="round"/></svg></div><p>B+ · cantos com aura (escuro)</p></div>
+  <div class="appicon"><div class="a" style="background:#26231D"><svg width="84" height="84" viewBox="0 0 64 64" fill="none"><rect x="20" y="14" width="24" height="34" rx="2" stroke="#ECE5D6" stroke-width="3"/><path d="M12 20v-8h8M44 12h8v8M52 44v8h-8M20 52h-8v-8" stroke="#ECE5D6" stroke-width="3.2" stroke-linecap="round"/></svg></div><p>B · monocromático</p></div>
+  <div class="appicon"><div class="a" style="background:#F3EEE4;border-radius:50%;width:56px;height:56px;margin-top:32px"><svg width="40" height="40" viewBox="0 0 64 64" fill="none"><rect x="20" y="14" width="24" height="34" rx="2" fill="#1C1A16"/><path d="M12 20v-8h8M44 12h8v8M52 44v8h-8M20 52h-8v-8" stroke="#B0602C" stroke-width="4" stroke-linecap="round"/></svg></div><p>B · 48dp (teste)</p></div>
+</div>
+
+<h2>Iconografia própria</h2>
+<p class="sub">Grade de 24dp, traço de 1,6, cantos arredondados de 1dp. O motivo "cantos de recorte" se repete nos ícones de captura.</p>
+<div class="panel iconset">
+  <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><circle cx="12" cy="12" r="3"/></svg><p>capturar</p></div>
+  <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><path d="M10 9l5 3-5 3z" fill="currentColor"/></svg><p>automático</p></div>
+  <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="6" y="5" width="9" height="12" rx="1"/><rect x="9" y="8" width="9" height="12" rx="1"/></svg><p>repetida</p></div>
+  <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="5" y="4" width="14" height="16" rx="1"/><path d="M5 20L19 4"/></svg><p>tela bloqueada</p></div>
+  <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M7 3v14h14M3 7h14v14"/></svg><p>recortar</p></div>
+  <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4-4M11 8v6M8 11h6"/></svg><p>zoom +</p></div>
+  <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg><p>filtro de cor</p></div>
+  <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M7 4h10v16l-5-4-5 4z"/></svg><p>marcador</p></div>
+  <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="5" y="3" width="14" height="18" rx="1"/><path d="M8 8h8M8 12h5"/><circle cx="15" cy="15" r="2.5"/><path d="M17 17l2 2"/></svg><p>buscar no livro</p></div>
+  <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 4l2.4 5 5.6.6-4.2 3.8 1.2 5.6L12 16.2 7 19l1.2-5.6L4 9.6 9.6 9z"/></svg><p>favorito</p></div>
+  <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h6l2 2h8v10H4z"/></svg><p>coleção</p></div>
+  <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h8l4 4v14H6z"/><path d="M12 10v7M9 14l3 3 3-3"/></svg><p>exportar pdf</p></div>
+  <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4"/><path d="M8 10h8M8 14h5"/></svg><p>texto (ocr)</p></div>
+  <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><ellipse cx="12" cy="6" rx="7" ry="2.5"/><path d="M5 6v12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V6M5 12c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5"/></svg><p>armazenamento</p></div>
+</div>
+
+<h2>Tokens</h2>
+<p class="sub">Prontos para <code>Color.kt</code> / <code>Type.kt</code>. Os valores mudam com o tema (alterne no topo).</p>
+<div class="panel">
+  <div class="swatches">
+    <div class="sw"><div style="background:var(--paper)"></div><p>background · paper</p></div>
+    <div class="sw"><div style="background:var(--surface)"></div><p>surface</p></div>
+    <div class="sw"><div style="background:var(--surface-2)"></div><p>surfaceVariant</p></div>
+    <div class="sw"><div style="background:var(--ink)"></div><p>onSurface · ink</p></div>
+    <div class="sw"><div style="background:var(--ink-2)"></div><p>onSurfaceVariant</p></div>
+    <div class="sw"><div style="background:var(--line)"></div><p>outline</p></div>
+    <div class="sw"><div style="background:var(--accent)"></div><p>primary · cobre</p></div>
+    <div class="sw"><div style="background:var(--accent-soft)"></div><p>primaryContainer</p></div>
+    <div class="sw"><div style="background:var(--ok)"></div><p>success · ocr ✓</p></div>
+    <div class="sw"><div style="background:var(--reader-bg)"></div><p>reader background</p></div>
+  </div>
+  <div class="type" style="margin-top:22px">
+    <p style="font:600 32px var(--serif);letter-spacing:-.03em">Geist · títulos, livros e interface</p>
+    <p style="font:400 16px var(--sans)">Geist · botões, rótulos e textos (14–16sp)</p>
+    <p style="font:400 13px var(--mono);color:var(--ink-2)">Geist Mono · metadados: p. 37/100 · 18,5 MB · ocr ✓</p>
+    <p style="font:12px var(--mono);color:var(--ink-3);margin-top:10px">Uma família só (sans + mono do mesmo desenho): visual de ferramenta de desenvolvedor, limpo e consistente. Licença OFL.</p>
+  </div>
+</div>
+</div>
+<script>
+function t(){const r=document.documentElement;r.dataset.theme=r.dataset.theme==='dark'?'light':'dark'}
+if(matchMedia('(prefers-color-scheme: dark)').matches)document.documentElement.dataset.theme='dark';
+</script>
+</body>
+</html>
