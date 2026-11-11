@@ -24,10 +24,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -35,6 +37,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -52,9 +55,12 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.printbook.app.capture.service.CaptureConfig
 import com.printbook.app.capture.service.CaptureService
+import com.printbook.app.capture.service.CaptureUiState
 import com.printbook.app.data.db.entity.SourceApp
 import com.printbook.app.data.prefs.CaptureMode
+import com.printbook.app.data.prefs.PageQuality
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -66,6 +72,7 @@ fun CaptureScreen(
     val capture by viewModel.captureState.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val capturingBooks by viewModel.capturingBooks.collectAsStateWithLifecycle()
+    val automationAvailable by viewModel.automationAvailable.collectAsStateWithLifecycle()
 
     var notificationsGranted by remember { mutableStateOf(hasNotificationPermission(context)) }
     var overlayGranted by remember { mutableStateOf(Settings.canDrawOverlays(context)) }
@@ -73,6 +80,7 @@ fun CaptureScreen(
     var continueBookIdRaw by rememberSaveable { mutableStateOf<Long?>(null) }
     // Ignora a seleção se o livro saiu da lista "em captura" (ex.: captura concluída).
     val continueBookId = continueBookIdRaw?.takeIf { id -> capturingBooks.any { it.id == id } }
+    var showA11yDisclosure by remember { mutableStateOf(false) }
 
     LifecycleResumeEffect(Unit) {
         notificationsGranted = hasNotificationPermission(context)
@@ -95,159 +103,245 @@ fun CaptureScreen(
         projectionLauncher.launch(manager.createScreenCaptureIntent())
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text("Capturar", style = MaterialTheme.typography.headlineMedium)
+    val cfg = capture.config
+    val showSetup = !(capture.running && cfg != null) &&
+        !(capture.interrupted && cfg != null) &&
+        !(cfg != null && capture.captured > 0)
+    val autoNeedsService = settings.captureMode == CaptureMode.AUTO && !automationAvailable
+    val modes = CaptureMode.entries.filter { it != CaptureMode.AUTO || viewModel.supportsAutomation }
 
-        if (!notificationsGranted || !overlayGranted) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Permissões necessárias", style = MaterialTheme.typography.titleMedium)
-                    PermissionRow("Notificações", notificationsGranted) {
-                        notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    }
-                    PermissionRow("Sobrepor a outros apps", overlayGranted) {
-                        context.startActivity(
-                            Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}")),
-                        )
-                    }
-                }
-            }
-        }
+    Column(Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Text("Capturar", style = MaterialTheme.typography.headlineMedium)
 
-        val cfg = capture.config
-        when {
-            capture.running && cfg != null -> {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                ) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("Capturando: ${cfg.bookTitle}", style = MaterialTheme.typography.titleMedium)
-                        Text("${cfg.sourceApp.label} · ${cfg.mode.label}")
-                        Text("${capture.captured} páginas nesta sessão · ${capture.bookPages} no livro")
-                        if (capture.duplicatesSkipped > 0) Text("${capture.duplicatesSkipped} repetidas ignoradas")
-                        capture.lastFileBytes?.let { Text("Última página: ${it / 1024} KB") }
-                        Text(
-                            if (cfg.mode == CaptureMode.SEMI_AUTO) {
-                                "Abra o livro, toque ▶ na bolha e vá virando as páginas."
-                            } else {
-                                "Abra o livro e toque no botão da câmera a cada página."
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                }
-                OutlinedButton(
-                    onClick = { context.startService(CaptureService.stopIntent(context)) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("Concluir captura") }
-            }
-
-            capture.interrupted && cfg != null -> {
+            if (!notificationsGranted || !overlayGranted) {
                 Card(modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Captura interrompida", style = MaterialTheme.typography.titleMedium)
-                        Text("A tela bloqueou ou o compartilhamento foi parado. ${capture.bookPages} páginas já estão salvas em \"${cfg.bookTitle}\".")
-                        Button(onClick = { viewModel.prepareResume(requestConsent) }, modifier = Modifier.fillMaxWidth()) {
-                            Text("Continuar captura")
+                        Text("Permissões necessárias", style = MaterialTheme.typography.titleMedium)
+                        PermissionRow("Notificações", notificationsGranted) {
+                            notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                         }
-                        TextButton(onClick = { onOpenBook(cfg.bookId); viewModel.dismissResult() }) { Text("Ver livro") }
-                    }
-                }
-            }
-
-            cfg != null && capture.captured > 0 -> {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Captura concluída", style = MaterialTheme.typography.titleMedium)
-                        Text("${capture.captured} páginas salvas em \"${cfg.bookTitle}\".")
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = { onOpenBook(cfg.bookId); viewModel.dismissResult() }) { Text("Abrir livro") }
-                            TextButton(onClick = viewModel::dismissResult) { Text("Nova captura") }
-                        }
-                    }
-                }
-            }
-
-            else -> {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("Livro", style = MaterialTheme.typography.titleMedium)
-                        if (capturingBooks.isNotEmpty()) {
-                            Text("Continuar um livro em captura:", style = MaterialTheme.typography.bodyMedium)
-                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                capturingBooks.forEach { book ->
-                                    FilterChip(
-                                        selected = continueBookId == book.id,
-                                        onClick = { continueBookIdRaw = if (continueBookId == book.id) null else book.id },
-                                        label = { Text("${book.title} (${book.pageCount})") },
-                                    )
-                                }
-                            }
-                        }
-                        if (continueBookId == null) {
-                            OutlinedTextField(
-                                value = title,
-                                onValueChange = { title = it },
-                                label = { Text("Nome do novo print-book") },
-                                placeholder = { Text("Ex.: Cálculo vol. 2") },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
+                        PermissionRow("Sobrepor a outros apps", overlayGranted) {
+                            context.startActivity(
+                                Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}")),
                             )
-                            Text("App de leitura", style = MaterialTheme.typography.bodyMedium)
-                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                SourceApp.entries.forEach { app ->
-                                    FilterChip(
-                                        selected = settings.lastSourceApp == app,
-                                        onClick = { viewModel.setSourceApp(app) },
-                                        label = { Text(app.label) },
-                                    )
+                        }
+                    }
+                }
+            }
+
+            when {
+                capture.running && cfg != null -> RunningCard(capture, cfg) {
+                    context.startService(CaptureService.stopIntent(context))
+                }
+
+                capture.interrupted && cfg != null -> {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Captura interrompida", style = MaterialTheme.typography.titleMedium)
+                            Text("A tela bloqueou ou o compartilhamento foi parado. ${capture.bookPages} páginas já estão salvas em \"${cfg.bookTitle}\".")
+                            Button(onClick = { viewModel.prepareResume(requestConsent) }, modifier = Modifier.fillMaxWidth()) {
+                                Text("Continuar captura")
+                            }
+                            TextButton(onClick = { onOpenBook(cfg.bookId); viewModel.dismissResult() }) { Text("Ver livro") }
+                        }
+                    }
+                }
+
+                cfg != null && capture.captured > 0 -> {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Captura concluída", style = MaterialTheme.typography.titleMedium)
+                            Text(capture.autoStopMessage ?: "${capture.captured} páginas salvas em \"${cfg.bookTitle}\".")
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(onClick = { onOpenBook(cfg.bookId); viewModel.dismissResult() }) { Text("Abrir livro") }
+                                TextButton(onClick = viewModel::dismissResult) { Text("Nova captura") }
+                            }
+                        }
+                    }
+                }
+
+                else -> {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text("Livro", style = MaterialTheme.typography.titleMedium)
+                            if (capturingBooks.isNotEmpty()) {
+                                Text("Continuar um livro em captura:", style = MaterialTheme.typography.bodyMedium)
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    capturingBooks.forEach { book ->
+                                        FilterChip(
+                                            selected = continueBookId == book.id,
+                                            onClick = { continueBookIdRaw = if (continueBookId == book.id) null else book.id },
+                                            label = { Text("${book.title} (${book.pageCount})") },
+                                        )
+                                    }
+                                }
+                            }
+                            if (continueBookId == null) {
+                                OutlinedTextField(
+                                    value = title,
+                                    onValueChange = { title = it },
+                                    label = { Text("Nome do novo print-book") },
+                                    placeholder = { Text("Ex.: Cálculo vol. 2") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                Text("App de leitura", style = MaterialTheme.typography.bodyMedium)
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    SourceApp.entries.forEach { app ->
+                                        FilterChip(
+                                            selected = settings.lastSourceApp == app,
+                                            onClick = { viewModel.setSourceApp(app) },
+                                            label = { Text(app.label) },
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("Modo", style = MaterialTheme.typography.titleMedium)
-                        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                            CaptureMode.entries.forEachIndexed { i, mode ->
-                                SegmentedButton(
-                                    selected = settings.captureMode == mode,
-                                    onClick = { viewModel.setMode(mode) },
-                                    shape = SegmentedButtonDefaults.itemShape(i, CaptureMode.entries.size),
-                                ) { Text(mode.label) }
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text("Modo", style = MaterialTheme.typography.titleMedium)
+                            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                                modes.forEachIndexed { i, mode ->
+                                    SegmentedButton(
+                                        selected = settings.captureMode == mode,
+                                        onClick = { viewModel.setMode(mode) },
+                                        shape = SegmentedButtonDefaults.itemShape(i, modes.size),
+                                    ) { Text(mode.label) }
+                                }
                             }
+                            Text(settings.captureMode.description, style = MaterialTheme.typography.bodySmall)
+                            if (settings.captureMode == CaptureMode.AUTO) {
+                                Text(
+                                    "Intervalo de ${settings.autoIntervalMs / 1000.0}s entre páginas · " +
+                                        if (settings.maxPagesPerSession > 0) "até ${settings.maxPagesPerSession} páginas" else "sem limite",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            HorizontalDivider()
+                            SwitchRow("Recortar barras e margens", settings.autoCrop, viewModel::setAutoCrop)
+                            SwitchRow("Ignorar páginas repetidas", settings.skipDuplicates, viewModel::setSkipDuplicates)
+                            Text("Qualidade das páginas", style = MaterialTheme.typography.bodyMedium)
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                PageQuality.entries.forEach { q ->
+                                    FilterChip(settings.pageQuality == q, { viewModel.setQuality(q) }, { Text(q.label) })
+                                }
+                            }
+                            Text(settings.pageQuality.description, style = MaterialTheme.typography.bodySmall)
                         }
-                        Text(settings.captureMode.description, style = MaterialTheme.typography.bodySmall)
-                        SwitchRow("Recortar barras e margens", settings.autoCrop, viewModel::setAutoCrop)
-                        SwitchRow("Ignorar páginas repetidas", settings.skipDuplicates, viewModel::setSkipDuplicates)
+                    }
+
+                    if (viewModel.supportsAutomation) {
+                        AutomationCard(available = automationAvailable, onEnable = { showA11yDisclosure = true })
                     }
                 }
+            }
 
-                Button(
-                    onClick = {
-                        viewModel.prepare(title, continueBookId, requestConsent)
-                        title = ""
-                        continueBookIdRaw = null
-                    },
-                    enabled = notificationsGranted && overlayGranted,
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("Iniciar captura") }
-                Text(
-                    "Na próxima tela, escolha \"Tela inteira\" ou o app de leitura.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            capture.warning?.let {
+                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
             }
         }
 
-        capture.warning?.let {
-            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+        // Botão fixo no rodapé: sempre visível, mesmo com a lista de livros em captura.
+        if (showSetup) {
+            Surface(tonalElevation = 3.dp) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
+                    Button(
+                        onClick = {
+                            viewModel.prepare(title, continueBookId, requestConsent)
+                            title = ""
+                            continueBookIdRaw = null
+                        },
+                        enabled = notificationsGranted && overlayGranted && !autoNeedsService,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Iniciar captura") }
+                    Text(
+                        if (autoNeedsService) "Ative a virada automática acima para usar o modo Automático."
+                        else "Na próxima tela, escolha \"Tela inteira\" ou o app de leitura.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+            }
+        }
+    }
+
+    if (showA11yDisclosure) {
+        AlertDialog(
+            onDismissRequest = { showA11yDisclosure = false },
+            title = { Text("Virar páginas automaticamente") },
+            text = {
+                Text(
+                    "O print-book usa um serviço de Acessibilidade para:\n\n" +
+                        "• deslizar a tela e virar a página do seu app de leitura, apenas quando você inicia a captura automática;\n" +
+                        "• pausar se você sair do app de leitura.\n\n" +
+                        "Ele NÃO lê o conteúdo das telas, senhas ou mensagens. Você pode desativar quando quiser nas configurações de Acessibilidade.\n\n" +
+                        "Na próxima tela, abra \"Apps instalados\" > \"print-book: virar páginas\" e ative. " +
+                        "Se a opção estiver bloqueada, vá em Configurações > Apps > print-book > ⋮ > \"Permitir configurações restritas\".",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showA11yDisclosure = false
+                    context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                }) { Text("Abrir configurações") }
+            },
+            dismissButton = { TextButton(onClick = { showA11yDisclosure = false }) { Text("Agora não") } },
+        )
+    }
+}
+
+@Composable
+private fun RunningCard(capture: CaptureUiState, cfg: CaptureConfig, onStop: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Capturando: ${cfg.bookTitle}", style = MaterialTheme.typography.titleMedium)
+            Text("${cfg.sourceApp.label} · ${cfg.mode.label} · ${cfg.quality.label}")
+            Text("${capture.captured} páginas nesta sessão · ${capture.bookPages} no livro")
+            if (capture.duplicatesSkipped > 0) Text("${capture.duplicatesSkipped} repetidas ignoradas")
+            capture.lastFileBytes?.let { Text("Última página: ${it / 1024} KB") }
+            capture.autoStopMessage?.let { Text(it, color = MaterialTheme.colorScheme.tertiary) }
+            Text(
+                when (cfg.mode) {
+                    CaptureMode.AUTO -> "Abra o livro na primeira página desejada e toque ▶ na bolha. O app vira as páginas sozinho."
+                    CaptureMode.SEMI_AUTO -> "Abra o livro, toque ▶ na bolha e vá virando as páginas."
+                    CaptureMode.MANUAL -> "Abra o livro e toque no botão da câmera a cada página."
+                },
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
+    OutlinedButton(onClick = onStop, modifier = Modifier.fillMaxWidth()) { Text("Concluir captura") }
+}
+
+@Composable
+private fun AutomationCard(available: Boolean, onEnable: () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Icon(
+                    if (available) Icons.Outlined.CheckCircle else Icons.Outlined.RadioButtonUnchecked,
+                    contentDescription = null,
+                    tint = if (available) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                )
+                Text("Virar páginas automaticamente", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            }
+            Text(
+                if (available) "Ativo. O modo Automático vira as páginas por você e para no fim do livro."
+                else "Necessário para o modo Automático. Usa um serviço de Acessibilidade só para deslizar a página.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            if (!available) TextButton(onClick = onEnable) { Text("Ativar") }
         }
     }
 }

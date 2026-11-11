@@ -4,6 +4,8 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.printbook.app.data.db.entity.SourceApp
 import kotlinx.coroutines.flow.Flow
@@ -14,7 +16,17 @@ import javax.inject.Singleton
 enum class CaptureMode(val label: String, val description: String) {
     MANUAL("Manual", "Toque na bolha para capturar cada página."),
     SEMI_AUTO("Semiautomático", "Você vira a página; o app captura sozinho quando a tela para de mudar."),
+    AUTO("Automático", "O app vira as páginas sozinho e para no fim do livro."),
 }
+
+enum class PageQuality(val label: String, val description: String) {
+    MAXIMA("Máxima", "Sem perda (WebP lossless). Maior nitidez, ocupa mais espaço."),
+    ECONOMICA("Econômica", "WebP com qualidade 90. Cerca de metade do espaço, ainda nítido."),
+}
+
+/** Intervalos da virada automática (ms) e limites de páginas por sessão (0 = sem limite). */
+val AUTO_INTERVALS_MS = listOf(1_500L, 2_500L, 4_000L)
+val MAX_PAGES_OPTIONS = listOf(100, 300, 500, 0)
 
 enum class LibrarySort(val label: String) { RECENT("Recentes"), TITLE("Título"), ADDED("Adicionados") }
 enum class LibraryLayout { GRID, LIST }
@@ -32,6 +44,10 @@ data class Settings(
     val readerFilter: ReaderFilter = ReaderFilter.NONE,
     val keepScreenOn: Boolean = true,
     val lastSourceApp: SourceApp = SourceApp.KINDLE,
+    val pageQuality: PageQuality = PageQuality.MAXIMA,
+    val autoIntervalMs: Long = 2_500L,
+    val maxPagesPerSession: Int = 500,
+    val volumeKeysTurnPages: Boolean = true,
 )
 
 @Singleton
@@ -48,6 +64,10 @@ class SettingsRepository @Inject constructor(private val store: DataStore<Prefer
         val readerFilter = stringPreferencesKey("reader_filter")
         val keepScreenOn = booleanPreferencesKey("keep_screen_on")
         val lastSourceApp = stringPreferencesKey("last_source_app")
+        val pageQuality = stringPreferencesKey("page_quality")
+        val autoIntervalMs = longPreferencesKey("auto_interval_ms")
+        val maxPagesPerSession = intPreferencesKey("max_pages_per_session")
+        val volumeKeys = booleanPreferencesKey("volume_keys")
     }
 
     val settings: Flow<Settings> = store.data.map { p ->
@@ -63,6 +83,10 @@ class SettingsRepository @Inject constructor(private val store: DataStore<Prefer
             readerFilter = p[Keys.readerFilter].toEnum(d.readerFilter),
             keepScreenOn = p[Keys.keepScreenOn] ?: d.keepScreenOn,
             lastSourceApp = p[Keys.lastSourceApp].toEnum(d.lastSourceApp),
+            pageQuality = p[Keys.pageQuality].toEnum(d.pageQuality),
+            autoIntervalMs = p[Keys.autoIntervalMs] ?: d.autoIntervalMs,
+            maxPagesPerSession = p[Keys.maxPagesPerSession] ?: d.maxPagesPerSession,
+            volumeKeysTurnPages = p[Keys.volumeKeys] ?: d.volumeKeysTurnPages,
         )
     }
 
@@ -76,6 +100,10 @@ class SettingsRepository @Inject constructor(private val store: DataStore<Prefer
     suspend fun setReaderFilter(v: ReaderFilter) = store.edit { it[Keys.readerFilter] = v.name }
     suspend fun setKeepScreenOn(v: Boolean) = store.edit { it[Keys.keepScreenOn] = v }
     suspend fun setLastSourceApp(v: SourceApp) = store.edit { it[Keys.lastSourceApp] = v.name }
+    suspend fun setPageQuality(v: PageQuality) = store.edit { it[Keys.pageQuality] = v.name }
+    suspend fun setAutoIntervalMs(v: Long) = store.edit { it[Keys.autoIntervalMs] = v }
+    suspend fun setMaxPagesPerSession(v: Int) = store.edit { it[Keys.maxPagesPerSession] = v }
+    suspend fun setVolumeKeysTurnPages(v: Boolean) = store.edit { it[Keys.volumeKeys] = v }
 
     private inline fun <reified E : Enum<E>> String?.toEnum(default: E): E =
         this?.let { name -> enumValues<E>().firstOrNull { it.name == name } } ?: default

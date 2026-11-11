@@ -39,7 +39,7 @@ fun BubbleContent(
     onFinish: () -> Unit,
 ) {
     val state by stateHolder.state.collectAsStateWithLifecycle()
-    val semiAuto = state.config?.mode == CaptureMode.SEMI_AUTO
+    val semiAuto = state.config?.mode != null && state.config?.mode != CaptureMode.MANUAL
     PrintBookTheme(darkTheme = true, dynamicColor = false) {
         Surface(
             shape = RoundedCornerShape(28.dp),
@@ -80,6 +80,9 @@ fun BubbleContent(
                     }
                 }
                 Text("${state.bookPages}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                if (state.autoStopMessage != null) {
+                    Text("fim", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
+                }
                 if (state.warning != null) {
                     Icon(Icons.Filled.Warning, contentDescription = state.warning, tint = MaterialTheme.colorScheme.error)
                 }

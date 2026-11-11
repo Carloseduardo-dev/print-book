@@ -11,7 +11,7 @@ object CaptureNotification {
     const val CHANNEL_ID = "capture"
     const val NOTIFICATION_ID = 1001
 
-    fun build(context: Context, captured: Int): Notification {
+    fun build(context: Context, captured: Int, message: String? = null): Notification {
         val openApp = PendingIntent.getActivity(
             context, 0, Intent(context, MainActivity::class.java),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
@@ -23,7 +23,7 @@ object CaptureNotification {
         return NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_camera)
             .setContentTitle("print-book capturando")
-            .setContentText("$captured páginas capturadas")
+            .setContentText(message ?: "$captured páginas capturadas")
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(openApp)

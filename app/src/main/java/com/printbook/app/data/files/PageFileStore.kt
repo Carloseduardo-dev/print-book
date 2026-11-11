@@ -2,6 +2,7 @@ package com.printbook.app.data.files
 
 import android.content.Context
 import android.graphics.Bitmap
+import com.printbook.app.data.prefs.PageQuality
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
 import java.util.UUID
@@ -24,13 +25,18 @@ class PageFileStore @Inject constructor(@ApplicationContext context: Context) {
     data class Written(val fileName: String, val bytes: Long, val encodeMs: Long)
 
     /** Escrita atômica: grava em .tmp e renomeia. */
-    fun write(bookId: Long, bitmap: Bitmap): Written {
+    fun write(bookId: Long, bitmap: Bitmap, quality: PageQuality = PageQuality.MAXIMA): Written {
         val dir = bookDir(bookId).apply { mkdirs() }
         val name = "${UUID.randomUUID()}.webp"
         val target = File(dir, name)
         val tmp = File(dir, "$name.tmp")
         val start = System.nanoTime()
-        tmp.outputStream().use { bitmap.compress(Bitmap.CompressFormat.WEBP_LOSSLESS, LOSSLESS_EFFORT, it) }
+        tmp.outputStream().use {
+            when (quality) {
+                PageQuality.MAXIMA -> bitmap.compress(Bitmap.CompressFormat.WEBP_LOSSLESS, LOSSLESS_EFFORT, it)
+                PageQuality.ECONOMICA -> bitmap.compress(Bitmap.CompressFormat.WEBP_LOSSY, LOSSY_QUALITY, it)
+            }
+        }
         val encodeMs = (System.nanoTime() - start) / 1_000_000
         check(tmp.renameTo(target)) { "Falha ao gravar $name" }
         return Written(name, target.length(), encodeMs)
@@ -49,5 +55,6 @@ class PageFileStore @Inject constructor(@ApplicationContext context: Context) {
     private companion object {
         /** Em WEBP_LOSSLESS, "quality" é o esforço de compressão (medido: ~145 ms/página no A56). */
         const val LOSSLESS_EFFORT = 75
+        const val LOSSY_QUALITY = 90
     }
 }

@@ -1,0 +1,5 @@
+<resources>
+    <string name="page_turner_label">print-book: virar páginas</string>
+    <string name="page_turner_summary">Vira as páginas do app de leitura durante a captura automática.</string>
+    <string name="page_turner_description">O print-book usa este serviço apenas para deslizar a tela e virar a página do seu app de leitura enquanto a captura automática está ligada, e para pausar se você sair do app de leitura. Ele não lê o conteúdo das telas, senhas nem mensagens. Desative quando quiser nesta mesma tela.</string>
+</resources>

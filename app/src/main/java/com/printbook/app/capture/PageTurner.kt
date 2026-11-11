@@ -1,15 +1,30 @@
 package com.printbook.app.capture
 
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+
 /**
  * Vira a página do app de leitura em primeiro plano. Implementação real (AccessibilityService)
- * só no flavor "pessoal", na Fase 3. Até lá, ambos os flavors usam [NoOpPageTurner].
+ * só no flavor "pessoal"; o flavor "loja" usa [NoOpPageTurner].
  */
 interface PageTurner {
-    val isAvailable: Boolean
+    /** Este build tem automação (flavor pessoal). */
+    val supportsAutomation: Boolean
+
+    /** O serviço de Acessibilidade está ativo e pronto para virar páginas. */
+    val isAvailable: StateFlow<Boolean>
+
+    /** Pacote do app em primeiro plano (via eventos de janela), ou null se desconhecido. */
+    val foregroundPackage: StateFlow<String?>
+
+    /** Vira para a próxima página. @return false se o gesto não pôde ser executado. */
     suspend fun nextPage(): Boolean
 }
 
 class NoOpPageTurner : PageTurner {
-    override val isAvailable: Boolean = false
+    override val supportsAutomation: Boolean = false
+    override val isAvailable: StateFlow<Boolean> = MutableStateFlow(false).asStateFlow()
+    override val foregroundPackage: StateFlow<String?> = MutableStateFlow<String?>(null).asStateFlow()
     override suspend fun nextPage(): Boolean = false
 }

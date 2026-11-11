@@ -97,6 +97,7 @@ class ReaderViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val books: BookRepository,
     private val settingsRepo: SettingsRepository,
+    val keyEvents: ReaderKeyEvents,
 ) : ViewModel() {
     private val route = savedStateHandle.toRoute<ReaderRoute>()
     val bookId = route.bookId
@@ -182,6 +183,21 @@ private fun ReaderContent(state: ReaderUiState, book: BookEntity, viewModel: Rea
             (view.context as? Activity)?.window?.let {
                 WindowCompat.getInsetsController(it, view).show(WindowInsetsCompat.Type.systemBars())
             }
+        }
+    }
+
+    // Teclas de volume viram a página (se ligado nos Ajustes).
+    DisposableEffect(state.settings.volumeKeysTurnPages) {
+        viewModel.keyEvents.active = state.settings.volumeKeysTurnPages
+        onDispose { viewModel.keyEvents.active = false }
+    }
+    LaunchedEffect(Unit) {
+        viewModel.keyEvents.turns.collect { turn ->
+            val target = when (turn) {
+                ReaderKeyEvents.Turn.NEXT -> pagerState.currentPage + 1
+                ReaderKeyEvents.Turn.PREVIOUS -> pagerState.currentPage - 1
+            }.coerceIn(0, pages.lastIndex)
+            pagerState.animateScrollToPage(target)
         }
     }
 

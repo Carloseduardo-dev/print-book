@@ -15,6 +15,7 @@ import com.printbook.app.data.db.entity.CollectionEntity
 import com.printbook.app.data.db.entity.PageEntity
 import com.printbook.app.data.db.entity.SourceApp
 import com.printbook.app.data.files.PageFileStore
+import com.printbook.app.data.prefs.PageQuality
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Mutex
@@ -79,8 +80,8 @@ class BookRepository @Inject constructor(
     // ---- Páginas ----
     data class SavedPage(val pageId: Long, val bytes: Long, val encodeMs: Long, val position: Int)
 
-    suspend fun addPage(bookId: Long, bitmap: Bitmap): SavedPage = withContext(Dispatchers.IO) {
-        val written = files.write(bookId, bitmap)
+    suspend fun addPage(bookId: Long, bitmap: Bitmap, quality: PageQuality = PageQuality.MAXIMA): SavedPage = withContext(Dispatchers.IO) {
+        val written = files.write(bookId, bitmap, quality)
         insertLock.withLock {
             val position = pageDao.maxPosition(bookId) + 1
             val id = pageDao.insert(

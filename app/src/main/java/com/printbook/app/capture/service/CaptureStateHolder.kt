@@ -2,6 +2,7 @@ package com.printbook.app.capture.service
 
 import com.printbook.app.data.db.entity.SourceApp
 import com.printbook.app.data.prefs.CaptureMode
+import com.printbook.app.data.prefs.PageQuality
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,6 +18,10 @@ data class CaptureConfig(
     val mode: CaptureMode,
     val autoCrop: Boolean,
     val skipDuplicates: Boolean,
+    val quality: PageQuality = PageQuality.MAXIMA,
+    val autoIntervalMs: Long = 2_500L,
+    /** null = sem limite. */
+    val maxPages: Int? = 500,
 )
 
 data class CaptureUiState(
@@ -35,6 +40,8 @@ data class CaptureUiState(
     val frameHeight: Int = 0,
     /** A projeção parou sozinha (tela bloqueada, chip "parar"): oferecer "continuar". */
     val interrupted: Boolean = false,
+    /** Mensagem de encerramento do modo automático (fim do livro, limite...). */
+    val autoStopMessage: String? = null,
 )
 
 /** Ponte entre o CaptureService, a bolha flutuante e a aba Capturar. Sem estado estático. */

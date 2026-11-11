@@ -2,12 +2,14 @@ package com.printbook.app.ui.capture
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.printbook.app.capture.PageTurner
 import com.printbook.app.capture.service.CaptureConfig
 import com.printbook.app.capture.service.CaptureStateHolder
 import com.printbook.app.capture.service.CaptureUiState
 import com.printbook.app.data.db.entity.BookEntity
 import com.printbook.app.data.db.entity.SourceApp
 import com.printbook.app.data.prefs.CaptureMode
+import com.printbook.app.data.prefs.PageQuality
 import com.printbook.app.data.prefs.Settings
 import com.printbook.app.data.prefs.SettingsRepository
 import com.printbook.app.data.repository.BookRepository
@@ -23,7 +25,14 @@ class CaptureViewModel @Inject constructor(
     private val stateHolder: CaptureStateHolder,
     private val books: BookRepository,
     private val settingsRepo: SettingsRepository,
+    private val pageTurner: PageTurner,
 ) : ViewModel() {
+
+    /** Build com automação (flavor pessoal). */
+    val supportsAutomation: Boolean = pageTurner.supportsAutomation
+
+    /** Serviço de Acessibilidade ativo. */
+    val automationAvailable: StateFlow<Boolean> = pageTurner.isAvailable
 
     val captureState: StateFlow<CaptureUiState> = stateHolder.state
 
@@ -38,6 +47,7 @@ class CaptureViewModel @Inject constructor(
     fun setSourceApp(app: SourceApp) = viewModelScope.launch { settingsRepo.setLastSourceApp(app) }
     fun setAutoCrop(v: Boolean) = viewModelScope.launch { settingsRepo.setAutoCrop(v) }
     fun setSkipDuplicates(v: Boolean) = viewModelScope.launch { settingsRepo.setSkipDuplicates(v) }
+    fun setQuality(v: PageQuality) = viewModelScope.launch { settingsRepo.setPageQuality(v) }
 
     /**
      * Cria (ou reaproveita) o livro e deixa a configuração pronta para o CaptureService.
@@ -55,6 +65,9 @@ class CaptureViewModel @Inject constructor(
                 mode = s.captureMode,
                 autoCrop = s.autoCrop,
                 skipDuplicates = s.skipDuplicates,
+                quality = s.pageQuality,
+                autoIntervalMs = s.autoIntervalMs,
+                maxPages = s.maxPagesPerSession.takeIf { it > 0 },
             )
             stateHolder.update { it.copy(warning = null, interrupted = false) }
             onReady()
@@ -69,5 +82,7 @@ class CaptureViewModel @Inject constructor(
         onReady()
     }
 
-    fun dismissResult() = stateHolder.update { it.copy(config = null, interrupted = false, captured = 0, duplicatesSkipped = 0) }
+    fun dismissResult() = stateHolder.update {
+        it.copy(config = null, interrupted = false, captured = 0, duplicatesSkipped = 0, autoStopMessage = null)
+    }
 }

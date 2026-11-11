@@ -26,7 +26,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import com.printbook.app.BuildConfig
+import com.printbook.app.data.prefs.AUTO_INTERVALS_MS
 import com.printbook.app.data.prefs.CaptureMode
+import com.printbook.app.data.prefs.MAX_PAGES_OPTIONS
+import com.printbook.app.data.prefs.PageQuality
 import com.printbook.app.data.prefs.ReaderFilter
 import com.printbook.app.data.prefs.Settings
 import com.printbook.app.data.prefs.SettingsRepository
@@ -58,6 +61,10 @@ class SettingsViewModel @Inject constructor(
     fun setSkipDuplicates(v: Boolean) = viewModelScope.launch { repo.setSkipDuplicates(v) }
     fun setReaderFilter(v: ReaderFilter) = viewModelScope.launch { repo.setReaderFilter(v) }
     fun setKeepScreenOn(v: Boolean) = viewModelScope.launch { repo.setKeepScreenOn(v) }
+    fun setVolumeKeys(v: Boolean) = viewModelScope.launch { repo.setVolumeKeysTurnPages(v) }
+    fun setQuality(v: PageQuality) = viewModelScope.launch { repo.setPageQuality(v) }
+    fun setInterval(v: Long) = viewModelScope.launch { repo.setAutoIntervalMs(v) }
+    fun setMaxPages(v: Int) = viewModelScope.launch { repo.setMaxPagesPerSession(v) }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -86,6 +93,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 ReaderFilter.entries.forEach { FilterChip(s.readerFilter == it, { viewModel.setReaderFilter(it) }, { Text(it.label) }) }
             }
             SwitchRow("Manter a tela ligada ao ler", s.keepScreenOn, viewModel::setKeepScreenOn)
+            SwitchRow("Teclas de volume viram a página", s.volumeKeysTurnPages, viewModel::setVolumeKeys)
         }
 
         Section("Captura") {
@@ -95,6 +103,22 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             }
             SwitchRow("Recortar barras e margens", s.autoCrop, viewModel::setAutoCrop)
             SwitchRow("Ignorar páginas repetidas", s.skipDuplicates, viewModel::setSkipDuplicates)
+            Text("Qualidade das páginas", style = MaterialTheme.typography.bodyMedium)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                PageQuality.entries.forEach { FilterChip(s.pageQuality == it, { viewModel.setQuality(it) }, { Text(it.label) }) }
+            }
+            Text("Modo automático: intervalo entre páginas", style = MaterialTheme.typography.bodyMedium)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                AUTO_INTERVALS_MS.forEach { ms ->
+                    FilterChip(s.autoIntervalMs == ms, { viewModel.setInterval(ms) }, { Text("${ms / 1000.0}s") })
+                }
+            }
+            Text("Modo automático: limite de páginas por sessão", style = MaterialTheme.typography.bodyMedium)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MAX_PAGES_OPTIONS.forEach { n ->
+                    FilterChip(s.maxPagesPerSession == n, { viewModel.setMaxPages(n) }, { Text(if (n == 0) "Sem limite" else "$n") })
+                }
+            }
         }
 
         Section("Armazenamento") {
