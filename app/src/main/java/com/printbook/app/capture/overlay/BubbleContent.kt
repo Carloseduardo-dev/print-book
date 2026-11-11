@@ -9,6 +9,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
@@ -26,17 +28,19 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.printbook.app.capture.service.CaptureStateHolder
+import com.printbook.app.data.prefs.CaptureMode
 import com.printbook.app.ui.theme.PrintBookTheme
 
 @Composable
 fun BubbleContent(
     stateHolder: CaptureStateHolder,
     onDrag: (Float, Float) -> Unit,
-    onCapture: () -> Unit,
+    onPrimary: () -> Unit,
     onFinish: () -> Unit,
 ) {
     val state by stateHolder.state.collectAsStateWithLifecycle()
-    PrintBookTheme(darkTheme = true) {
+    val semiAuto = state.config?.mode == CaptureMode.SEMI_AUTO
+    PrintBookTheme(darkTheme = true, dynamicColor = false) {
         Surface(
             shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
@@ -54,19 +58,28 @@ fun BubbleContent(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
+                val (icon, description) = when {
+                    !semiAuto -> Icons.Filled.CameraAlt to "Capturar página"
+                    state.autoActive -> Icons.Filled.Pause to "Pausar captura automática"
+                    else -> Icons.Filled.PlayArrow to "Iniciar captura automática"
+                }
                 FilledIconButton(
-                    onClick = onCapture,
-                    enabled = !state.busy,
+                    onClick = onPrimary,
+                    enabled = semiAuto || !state.busy,
                     modifier = Modifier.size(56.dp),
-                    colors = IconButtonDefaults.filledIconButtonColors(),
+                    colors = if (state.autoActive) {
+                        IconButtonDefaults.filledIconButtonColors(containerColor = MaterialTheme.colorScheme.tertiary)
+                    } else {
+                        IconButtonDefaults.filledIconButtonColors()
+                    },
                 ) {
-                    if (state.busy) {
+                    if (state.busy && !semiAuto) {
                         CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                     } else {
-                        Icon(Icons.Filled.CameraAlt, contentDescription = "Capturar página")
+                        Icon(icon, contentDescription = description)
                     }
                 }
-                Text("${state.captured}", style = MaterialTheme.typography.labelLarge)
+                Text("${state.bookPages}", style = MaterialTheme.typography.labelLarge)
                 if (state.warning != null) {
                     Icon(Icons.Filled.Warning, contentDescription = state.warning, tint = MaterialTheme.colorScheme.error)
                 }

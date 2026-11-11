@@ -12,6 +12,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import android.util.Log
 import android.view.WindowManager
+import com.printbook.app.capture.analysis.FrameSignature
 import kotlinx.coroutines.delay
 
 /**
@@ -107,6 +108,26 @@ class ProjectionSession(
             delay(16)
         }
         synchronized(lock) { return latest?.toBitmap() }
+    }
+
+    /**
+     * Assinatura do quadro mais recente lida direto do buffer (sem criar Bitmap), barata o
+     * bastante para rodar a cada ~150 ms no modo semiautomático.
+     */
+    fun sampleSignature(): FrameSignature? = synchronized(lock) {
+        val img = latest ?: return null
+        val plane = img.planes[0]
+        val buffer = plane.buffer
+        val rowStride = plane.rowStride
+        val pixelStride = plane.pixelStride
+        FrameSignature.sample(img.width, img.height) { x, y ->
+            val i = y * rowStride + x * pixelStride
+            // RGBA_8888 -> ARGB
+            val r = buffer.get(i).toInt() and 0xFF
+            val g = buffer.get(i + 1).toInt() and 0xFF
+            val b = buffer.get(i + 2).toInt() and 0xFF
+            (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+        }
     }
 
     private fun Image.toBitmap(): Bitmap {

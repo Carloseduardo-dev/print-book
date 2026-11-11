@@ -4,44 +4,62 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
-import android.graphics.Bitmap
 import android.media.projection.MediaProjectionManager
 import android.util.Log
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.IntentCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
-import com.printbook.app.capture.SpikePageStore
-import com.printbook.app.capture.analysis.BlackFrameDetector
+import com.printbook.app.capture.analysis.AutoCaptureTrigger
+import com.printbook.app.capture.analysis.FrameSignature
 import com.printbook.app.capture.overlay.BubbleContent
 import com.printbook.app.capture.overlay.OverlayWindowManager
+import com.printbook.app.capture.processing.PageProcessor
+import com.printbook.app.capture.processing.ProcessedFrame
+import com.printbook.app.capture.profile.CaptureProfile
 import com.printbook.app.capture.projection.ProjectionSession
+import com.printbook.app.data.prefs.CaptureMode
+import com.printbook.app.data.repository.BookRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
  * Foreground service do tipo mediaProjection. Mantém uma única ProjectionSession enquanto a
- * captura estiver ativa e hospeda a bolha flutuante.
+ * captura estiver ativa, hospeda a bolha flutuante e grava as páginas no livro escolhido.
  */
 @AndroidEntryPoint
 class CaptureService : LifecycleService() {
 
     @Inject lateinit var stateHolder: CaptureStateHolder
-    @Inject lateinit var store: SpikePageStore
+    @Inject lateinit var books: BookRepository
 
     private var session: ProjectionSession? = null
     private var overlay: OverlayWindowManager? = null
+    private var config: CaptureConfig? = null
+    private var profile: CaptureProfile? = null
+
+    private val captureMutex = Mutex()
+    private var lastSavedSignature: FrameSignature? = null
+    private val trigger = AutoCaptureTrigger()
+    private var autoJob: Job? = null
+    private var userStopped = false
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
         when (intent?.action) {
             ACTION_START -> start(intent)
-            ACTION_STOP -> stopCapture()
-            else -> stopCapture()
+            else -> {
+                userStopped = true
+                stopCapture()
+            }
         }
         return START_NOT_STICKY
     }
@@ -54,16 +72,21 @@ class CaptureService : LifecycleService() {
             CaptureNotification.build(this, 0),
             ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION,
         )
+        val cfg = stateHolder.pendingConfig
         val resultCode = intent.getIntExtra(EXTRA_RESULT_CODE, Activity.RESULT_CANCELED)
         val data = IntentCompat.getParcelableExtra(intent, EXTRA_DATA, Intent::class.java)
         val projection = data?.let {
             getSystemService(MediaProjectionManager::class.java).getMediaProjection(resultCode, it)
         }
-        if (projection == null) {
+        if (projection == null || cfg == null) {
             stateHolder.update { it.copy(warning = "Permissão de captura não concedida") }
             stopCapture()
             return
         }
+        config = cfg
+        profile = CaptureProfile.forApp(cfg.sourceApp)
+        userStopped = false
+        lastSavedSignature = null
 
         val newSession = ProjectionSession(this, projection, onStopped = {
             lifecycleScope.launch { stopCapture() }
@@ -71,7 +94,14 @@ class CaptureService : LifecycleService() {
         newSession.start()
         session = newSession
         stateHolder.update {
-            CaptureUiState(running = true, captured = store.count(), frameWidth = newSession.width, frameHeight = newSession.height)
+            CaptureUiState(
+                running = true, config = cfg,
+                frameWidth = newSession.width, frameHeight = newSession.height,
+            )
+        }
+        lifecycleScope.launch {
+            val pages = books.getBook(cfg.bookId)?.pageCount ?: 0
+            stateHolder.update { it.copy(bookPages = pages) }
         }
 
         overlay = OverlayWindowManager(this).also { manager ->
@@ -79,73 +109,117 @@ class CaptureService : LifecycleService() {
                 BubbleContent(
                     stateHolder = stateHolder,
                     onDrag = onDrag,
-                    onCapture = ::captureOnce,
-                    onFinish = ::stopCapture,
+                    onPrimary = ::onBubblePrimary,
+                    onFinish = {
+                        userStopped = true
+                        stopCapture()
+                    },
                 )
             }
         }
     }
 
-    private fun captureOnce() {
-        val currentSession = session ?: return
-        if (stateHolder.state.value.busy) return
-        stateHolder.update { it.copy(busy = true, warning = null) }
-        lifecycleScope.launch {
-            try {
-                // Suspende até alguns vsyncs depois de esconder a bolha; só então aceita quadros novos.
-                overlay?.setVisible(false)
-                delay(HIDE_SETTLE_MS)
-                // Tela estática não gera quadros novos: após o timeout usa o mais recente (já sem bolha).
-                val bitmap = currentSession.captureAfter(System.nanoTime(), timeoutMs = 250)
-                overlay?.setVisible(true)
+    /** Toque no botão principal: captura (manual) ou liga/pausa o semiautomático. */
+    private fun onBubblePrimary() {
+        val cfg = config ?: return
+        if (cfg.mode == CaptureMode.MANUAL) {
+            lifecycleScope.launch { captureOnce() }
+            return
+        }
+        if (autoJob?.isActive == true) {
+            autoJob?.cancel()
+            autoJob = null
+            stateHolder.update { it.copy(autoActive = false) }
+        } else {
+            autoJob = lifecycleScope.launch { autoLoop() }
+            stateHolder.update { it.copy(autoActive = true) }
+        }
+    }
 
-                if (bitmap == null) {
-                    stateHolder.update { it.copy(warning = "Nenhum quadro disponível") }
-                    return@launch
-                }
-                if (BlackFrameDetector.isBlack(sample(bitmap))) {
-                    bitmap.recycle()
-                    // Regra do projeto: nunca contornar FLAG_SECURE. Só avisar.
-                    stateHolder.update { it.copy(warning = "Tela preta: este app bloqueia captura") }
-                    return@launch
-                }
-                val saved = withContext(Dispatchers.IO) {
-                    try { store.save(bitmap) } finally { bitmap.recycle() }
-                }
-                Log.i(TAG, "Página ${saved.file.name}: ${saved.file.length() / 1024} KB, encode ${saved.encodeMs} ms")
-                val captured = store.count()
-                stateHolder.update {
-                    it.copy(
-                        captured = captured,
-                        lastEncodeMs = saved.encodeMs,
-                        lastFileBytes = saved.file.length(),
-                        frameWidth = currentSession.width,
-                        frameHeight = currentSession.height,
-                    )
-                }
-                updateNotification(captured)
-            } catch (e: Exception) {
-                Log.e(TAG, "Falha na captura", e)
-                stateHolder.update { it.copy(warning = "Falha na captura: ${e.message}") }
-            } finally {
-                overlay?.setVisible(true)
-                stateHolder.update { it.copy(busy = false) }
+    /** Semiautomático: captura a página atual e depois cada página nova que estabilizar. */
+    private suspend fun autoLoop() {
+        captureOnce()
+        trigger.resetReference()
+        while (lifecycleScope.isActive) {
+            delay(SAMPLE_INTERVAL_MS)
+            val signature = withContext(Dispatchers.Default) { session?.sampleSignature() } ?: continue
+            if (trigger.onSample(signature)) {
+                captureOnce()
+                trigger.resetReference()
             }
         }
     }
 
-    /** Amostra uma grade de ~64x64 pixels para o detector de tela preta. */
-    private fun sample(bitmap: Bitmap, grid: Int = 64): IntArray {
-        val out = IntArray(grid * grid)
-        val stepX = (bitmap.width / grid).coerceAtLeast(1)
-        val stepY = (bitmap.height / grid).coerceAtLeast(1)
-        var i = 0
-        for (gy in 0 until grid) for (gx in 0 until grid) {
-            val x = (gx * stepX).coerceAtMost(bitmap.width - 1)
-            val y = (gy * stepY).coerceAtMost(bitmap.height - 1)
-            out[i++] = bitmap.getPixel(x, y)
+    private suspend fun captureOnce() = captureMutex.withLock {
+        val currentSession = session ?: return@withLock
+        val cfg = config ?: return@withLock
+        val prof = profile ?: return@withLock
+        stateHolder.update { it.copy(busy = true, warning = null) }
+        try {
+            // Esconde a bolha e espera alguns vsyncs; só então aceita quadros novos.
+            overlay?.setVisible(false)
+            delay(HIDE_SETTLE_MS)
+            // Tela estática não gera quadros novos: após o timeout usa o mais recente (já sem bolha).
+            val frame = currentSession.captureAfter(System.nanoTime(), timeoutMs = 250)
+            overlay?.setVisible(true)
+            if (frame == null) {
+                stateHolder.update { it.copy(warning = "Nenhum quadro disponível") }
+                return@withLock
+            }
+
+            val processed = withContext(Dispatchers.Default) { PageProcessor.process(frame, prof, cfg.autoCrop) }
+            when (processed) {
+                ProcessedFrame.Black -> {
+                    frame.recycle()
+                    // Regra do projeto: nunca contornar FLAG_SECURE. Só avisar e pausar.
+                    pauseAuto()
+                    stateHolder.update { it.copy(warning = "Tela preta: este app bloqueia captura") }
+                }
+                is ProcessedFrame.Page -> savePage(cfg, processed, frame)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Falha na captura", e)
+            stateHolder.update { it.copy(warning = "Falha na captura: ${e.message}") }
+        } finally {
+            overlay?.setVisible(true)
+            stateHolder.update { it.copy(busy = false) }
         }
-        return out
+    }
+
+    private suspend fun savePage(cfg: CaptureConfig, page: ProcessedFrame.Page, frame: android.graphics.Bitmap) {
+        val previous = lastSavedSignature
+        val isDuplicate = cfg.skipDuplicates && previous != null &&
+            previous.width == page.signature.width &&
+            page.signature.meanAbsDiff(previous) < DUPLICATE_THRESHOLD
+        if (isDuplicate) {
+            if (page.bitmap !== frame) page.bitmap.recycle()
+            frame.recycle()
+            stateHolder.update { it.copy(duplicatesSkipped = it.duplicatesSkipped + 1, warning = "Página repetida ignorada") }
+            return
+        }
+        val saved = try {
+            books.addPage(cfg.bookId, page.bitmap)
+        } finally {
+            if (page.bitmap !== frame) page.bitmap.recycle()
+            frame.recycle()
+        }
+        lastSavedSignature = page.signature
+        Log.i(TAG, "Página ${saved.position + 1}: ${page.crop.width}x${page.crop.height}, ${saved.bytes / 1024} KB, encode ${saved.encodeMs} ms")
+        stateHolder.update {
+            it.copy(
+                captured = it.captured + 1,
+                bookPages = saved.position + 1,
+                lastEncodeMs = saved.encodeMs,
+                lastFileBytes = saved.bytes,
+            )
+        }
+        updateNotification(stateHolder.state.value.captured)
+    }
+
+    private fun pauseAuto() {
+        autoJob?.cancel()
+        autoJob = null
+        stateHolder.update { it.copy(autoActive = false) }
     }
 
     private fun updateNotification(captured: Int) {
@@ -156,19 +230,29 @@ class CaptureService : LifecycleService() {
     }
 
     private fun stopCapture() {
+        autoJob?.cancel()
+        autoJob = null
         overlay?.dismiss()
         overlay = null
+        val hadSession = session != null
         session?.release()
         session = null
-        stateHolder.update { it.copy(running = false, busy = false) }
+        val cfg = config
+        if (cfg != null && userStopped) {
+            lifecycleScope.launch(Dispatchers.IO) { books.markReady(cfg.bookId) }
+        }
+        stateHolder.update {
+            it.copy(running = false, busy = false, autoActive = false, interrupted = hadSession && !userStopped)
+        }
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }
 
     override fun onDestroy() {
+        autoJob?.cancel()
         overlay?.dismiss()
         session?.release()
-        stateHolder.update { it.copy(running = false, busy = false) }
+        stateHolder.update { it.copy(running = false, busy = false, autoActive = false) }
         super.onDestroy()
     }
 
@@ -176,6 +260,9 @@ class CaptureService : LifecycleService() {
         private const val TAG = "CaptureService"
         /** Margem extra após os vsyncs, para a latência do compositor até o VirtualDisplay. */
         private const val HIDE_SETTLE_MS = 32L
+        private const val SAMPLE_INTERVAL_MS = 150L
+        /** Diferença média (0..255) abaixo da qual duas páginas são consideradas iguais. */
+        private const val DUPLICATE_THRESHOLD = 1.0
         private const val ACTION_START = "com.printbook.app.capture.START"
         private const val ACTION_STOP = "com.printbook.app.capture.STOP"
         private const val EXTRA_RESULT_CODE = "resultCode"

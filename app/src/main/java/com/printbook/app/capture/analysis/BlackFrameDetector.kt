@@ -23,7 +23,7 @@ object BlackFrameDetector {
         return dark.toDouble() / argbSamples.size >= DARK_FRACTION
     }
 
-    internal fun luma(argb: Int): Int {
+    fun luma(argb: Int): Int {
         val r = (argb shr 16) and 0xFF
         val g = (argb shr 8) and 0xFF
         val b = argb and 0xFF

@@ -25,7 +25,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.printbook.app.R
+import androidx.navigation.NavHostController
+import com.printbook.app.ui.bookdetail.BookDetailScreen
 import com.printbook.app.ui.capture.CaptureScreen
+import com.printbook.app.ui.editor.EditorScreen
+import com.printbook.app.ui.reader.ReaderScreen
 import com.printbook.app.ui.home.HomeScreen
 import com.printbook.app.ui.library.LibraryScreen
 import com.printbook.app.ui.settings.SettingsScreen
@@ -60,13 +64,7 @@ fun PrintBookNavHost() {
                         val selected = destination?.hierarchy?.any { it.hasRoute(tab.routeClass) } == true
                         NavigationBarItem(
                             selected = selected,
-                            onClick = {
-                                navController.navigate(tab.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
+                            onClick = { navController.navigateToTab(tab.route) },
                             icon = { Icon(tab.icon, contentDescription = null) },
                             label = { Text(stringResource(tab.label)) },
                         )
@@ -80,10 +78,38 @@ fun PrintBookNavHost() {
             startDestination = HomeRoute,
             modifier = Modifier.padding(innerPadding),
         ) {
-            composable<HomeRoute> { HomeScreen(onStartCapture = { navController.navigate(CaptureRoute) }) }
-            composable<LibraryRoute> { LibraryScreen() }
-            composable<CaptureRoute> { CaptureScreen() }
+            composable<HomeRoute> {
+                HomeScreen(
+                    onStartCapture = { navController.navigateToTab(CaptureRoute) },
+                    onOpenBook = { navController.navigate(BookDetailRoute(it)) },
+                    onContinueReading = { navController.navigate(ReaderRoute(it)) },
+                )
+            }
+            composable<LibraryRoute> { LibraryScreen(onOpenBook = { navController.navigate(BookDetailRoute(it)) }) }
+            composable<CaptureRoute> { CaptureScreen(onOpenBook = { navController.navigate(BookDetailRoute(it)) }) }
             composable<SettingsRoute> { SettingsScreen() }
+            composable<BookDetailRoute> {
+                BookDetailScreen(
+                    onBack = { navController.popBackStack() },
+                    onRead = { navController.navigate(ReaderRoute(it)) },
+                    onEdit = { navController.navigate(EditorRoute(it)) },
+                )
+            }
+            composable<ReaderRoute> { ReaderScreen(onBack = { navController.popBackStack() }) }
+            composable<EditorRoute> {
+                EditorScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenPage = { bookId, index -> navController.navigate(ReaderRoute(bookId, index)) },
+                )
+            }
         }
+    }
+}
+
+private fun NavHostController.navigateToTab(route: Any) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
     }
 }
