@@ -33,7 +33,14 @@ class AccessibilityBridge @Inject constructor() {
         }
     }
 
-    fun onForeground(packageName: String) {
+    private val _foregroundActivity = MutableStateFlow<String?>(null)
+    val foregroundActivity: StateFlow<String?> = _foregroundActivity.asStateFlow()
+
+    fun onForeground(packageName: String, className: String?) {
         _foregroundPackage.value = packageName
+        // Só Activities: popups/menus do próprio leitor também geram eventos de janela.
+        if (className != null && className.contains("Activity")) {
+            _foregroundActivity.value = "$packageName/$className"
+        }
     }
 }

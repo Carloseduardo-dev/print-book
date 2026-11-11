@@ -17,6 +17,7 @@ class AccessibilityPageTurner @Inject constructor(
     override val supportsAutomation: Boolean = true
     override val isAvailable: StateFlow<Boolean> = bridge.connected
     override val foregroundPackage: StateFlow<String?> = bridge.foregroundPackage
+    override val foregroundActivity: StateFlow<String?> = bridge.foregroundActivity
 
     override suspend fun nextPage(): Boolean {
         val service = bridge.service.value ?: return false

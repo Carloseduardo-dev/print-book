@@ -201,6 +201,7 @@ class CaptureService : LifecycleService() {
         }
         val controller = AutoTurnController(maxPages = cfg.maxPages)
         val readerPackage = pageTurner.foregroundPackage.value
+        val readerActivity = pageTurner.foregroundActivity.value
         var result = captureOnce().toTurnResult()
         var lastTurnAt = 0L
 
@@ -244,6 +245,13 @@ class CaptureService : LifecycleService() {
                 }
                 true
             } ?: false
+
+            // O app saiu da tela de leitura (ex.: fim da amostra abre a loja): fim, sem capturar.
+            val activityNow = pageTurner.foregroundActivity.value
+            if (readerActivity != null && activityNow != null && activityNow != readerActivity) {
+                Log.i(TAG, "Tela mudou de $readerActivity para $activityNow")
+                return AutoEnd("Fim do livro: o app saiu da tela de leitura. ${controller.savedPages} páginas capturadas", true)
+            }
 
             result = if (settled) captureOnce().toTurnResult() else AutoTurnController.Result.NO_CHANGE
         }

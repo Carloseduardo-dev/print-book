@@ -33,7 +33,7 @@ class PageTurnerAccessibilityService : AccessibilityService() {
         if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return
         val pkg = event.packageName?.toString() ?: return
         if (pkg == packageName || pkg in IGNORED_PACKAGES) return
-        bridge.onForeground(pkg)
+        bridge.onForeground(pkg, event.className?.toString())
     }
 
     override fun onInterrupt() = Unit

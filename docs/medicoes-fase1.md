@@ -64,6 +64,22 @@ Bugs corrigidos durante o teste:
 - O nome do livro continuava no campo depois de iniciar a captura (agora é limpo).
 - O botão "Iniciar captura" fica abaixo da dobra quando há livros em captura. Está ok com rolagem, mas é candidato a melhoria de layout.
 
+## Teste 5: 2026-11-11, Fase 3, modo AUTOMÁTICO (feito por Claude via ADB, um único toque em ▶)
+
+Serviço de Acessibilidade ativado via `settings put secure enabled_accessibility_services`. Deslize de 0,88w → 0,22w em y=0,70h, intervalo de 2,5 s + variação aleatória de 0–0,7 s.
+
+| Teste | Resultado |
+|---|---|
+| Minha Biblioteca, limite de 100 | **100/100 em 347 s (~3,5 s/página)**, 0 duplicatas, todas 968×1268, 19,4 MB. Parou sozinho: "Limite de páginas da sessão atingido" |
+| Play Livros até o fim da amostra (Econômica) | **145 páginas em 521 s**, parou sozinho em "Fim do livro" |
+| Qualidade Econômica (WebP 90) | **~170 KB/página contra 317 KB na Máxima (−46%)**. Texto e código nítidos em resolução real. Encode de ~220 ms (contra ~145 ms) |
+| Fim da amostra, depois da correção | 25 páginas. Parou ao detectar a troca de tela `ReadingActivity → ArbitraryFragmentActivity`, **sem salvar a tela de compra** |
+| Pausa ao sair do leitor | HOME aos 15 s → "Captura pausada: você saiu do app de leitura" (5 páginas salvas) |
+| Teclas de volume no leitor | 3× volume baixo + 1× volume alto: página 1 → 3. O volume do sistema não mudou |
+| Flavor `loja` | 0 referências a `BIND_ACCESSIBILITY_SERVICE` no manifesto final |
+
+Bug encontrado e corrigido: no fim da amostra, o Play Livros abre a tela de compra (mesmo pacote, outra Activity) e a primeira versão capturava essa tela como página. Agora o serviço acompanha a Activity em primeiro plano, e o automático encerra sem capturar quando ela muda.
+
 ## Pendentes
 - [x] Repetir o teste após a correção da bolha (Minha Biblioteca e Kindle)
 - [x] Captura de **um app só**: a bolha não aparece. Quadro de 1080×2340.
