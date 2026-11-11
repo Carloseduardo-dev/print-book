@@ -1,7 +1,5 @@
 package com.printbook.app.ui.bookdetail
 
-import android.content.Context
-import android.graphics.ImageDecoder
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -9,9 +7,6 @@ import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.SmallFloatingActionButton
-import androidx.compose.ui.platform.LocalContext
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
@@ -134,17 +129,15 @@ class BookDetailViewModel @Inject constructor(
         return books.pageFile(book.id, name)
     }
 
-    fun setCustomCover(context: Context, uri: Uri) = viewModelScope.launch {
-        val bitmap = withContext(Dispatchers.IO) {
-            runCatching {
-                ImageDecoder.decodeBitmap(ImageDecoder.createSource(context.contentResolver, uri)) { decoder, info, _ ->
-                    decoder.isMutableRequired = false
-                    val w = info.size.width
-                    if (w > 1080) decoder.setTargetSize(1080, info.size.height * 1080 / w)
-                }
-            }.getOrNull()
-        } ?: return@launch
-        books.setCustomCover(bookId, bitmap)
+    private val _coverError = MutableStateFlow<String?>(null)
+    /** Erro ao trocar a capa (imagem que não abre, falta de espaço). */
+    val coverError: StateFlow<String?> = _coverError
+    fun clearCoverError() { _coverError.value = null }
+
+    fun setCustomCover(uri: Uri) = viewModelScope.launch {
+        books.setCustomCover(bookId, uri).onFailure {
+            _coverError.value = "Não foi possível usar essa imagem como capa."
+        }
     }
 
     fun removeCover() = viewModelScope.launch { books.removeCover(bookId) }
@@ -171,9 +164,9 @@ fun BookDetailScreen(
     var collectionsDialog by remember { mutableStateOf(false) }
     var exportWarning by remember { mutableStateOf(false) }
     var coverMenu by remember { mutableStateOf(false) }
-    val context = LocalContext.current
+    val coverError by viewModel.coverError.collectAsStateWithLifecycle()
     val coverPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) viewModel.setCustomCover(context, uri)
+        if (uri != null) viewModel.setCustomCover(uri)
     }
     val exportStatus by viewModel.exportStatus.collectAsStateWithLifecycle()
     val pdfLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/pdf")) { uri ->
@@ -314,6 +307,15 @@ fun BookDetailScreen(
                 TextButton(onClick = viewModel::markReady) { Text("Marcar captura como concluída") }
             }
         }
+    }
+
+    coverError?.let { message ->
+        AlertDialog(
+            onDismissRequest = viewModel::clearCoverError,
+            title = { Text("Capa não alterada") },
+            text = { Text(message) },
+            confirmButton = { TextButton(onClick = viewModel::clearCoverError) { Text("OK") } },
+        )
     }
 
     if (renameDialog && book != null) {

@@ -45,6 +45,8 @@ data class CaptureUiState(
     val autoStopMessage: String? = null,
     /** Páginas do livro em captura, da mais recente para a mais antiga (preview na bolha). */
     val recentPages: List<PageThumb> = emptyList(),
+    /** Painel de revisão aberto na bolha (o automático fica pausado enquanto isso). */
+    val reviewOpen: Boolean = false,
 )
 
 /** Miniatura de uma página capturada, para o painel de revisão da bolha. */

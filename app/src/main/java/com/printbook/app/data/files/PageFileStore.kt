@@ -2,6 +2,8 @@ package com.printbook.app.data.files
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.ImageDecoder
+import android.net.Uri
 import com.printbook.app.data.prefs.PageQuality
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
@@ -14,9 +16,9 @@ import javax.inject.Singleton
  * O nome do arquivo não depende da posição: reordenar só mexe no banco.
  */
 @Singleton
-class PageFileStore @Inject constructor(@ApplicationContext context: Context) {
+class PageFileStore @Inject constructor(@ApplicationContext private val appContext: Context) {
 
-    private val root = File(context.filesDir, "books")
+    private val root = File(appContext.filesDir, "books")
 
     fun bookDir(bookId: Long): File = File(root, bookId.toString())
 
@@ -42,19 +44,32 @@ class PageFileStore @Inject constructor(@ApplicationContext context: Context) {
         return Written(name, target.length(), encodeMs)
     }
 
-    /** Grava a capa própria (WebP 90, até 1080 px de largura) e devolve o nome do arquivo. */
-    fun writeCover(bookId: Long, bitmap: Bitmap): String {
-        val dir = bookDir(bookId).apply { mkdirs() }
-        val scaled = if (bitmap.width > COVER_MAX_WIDTH) {
-            Bitmap.createScaledBitmap(bitmap, COVER_MAX_WIDTH, bitmap.height * COVER_MAX_WIDTH / bitmap.width, true)
-        } else bitmap
-        // Nome único a cada troca: evita o cache de imagem mostrar a capa antiga.
-        val name = "cover-${UUID.randomUUID()}.webp"
-        val tmp = File(dir, "$name.tmp")
-        tmp.outputStream().use { scaled.compress(Bitmap.CompressFormat.WEBP_LOSSY, LOSSY_QUALITY, it) }
-        if (scaled !== bitmap) scaled.recycle()
-        check(tmp.renameTo(File(dir, name))) { "Falha ao gravar a capa" }
-        return name
+    /**
+     * Grava a capa própria a partir de uma imagem (Photo Picker): decodifica já reduzida a
+     * [COVER_MAX_WIDTH], salva em WebP 90 e devolve o nome do arquivo. Lança se a imagem não abrir
+     * ou a gravação falhar (o chamador trata).
+     */
+    fun writeCover(bookId: Long, uri: Uri): String {
+        val bitmap = ImageDecoder.decodeBitmap(ImageDecoder.createSource(appContext.contentResolver, uri)) { decoder, info, _ ->
+            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+            val w = info.size.width
+            if (w > COVER_MAX_WIDTH) decoder.setTargetSize(COVER_MAX_WIDTH, info.size.height * COVER_MAX_WIDTH / w)
+        }
+        try {
+            val dir = bookDir(bookId).apply { mkdirs() }
+            // Nome único a cada troca: evita o cache de imagem mostrar a capa antiga.
+            val name = "cover-${UUID.randomUUID()}.webp"
+            val tmp = File(dir, "$name.tmp")
+            try {
+                tmp.outputStream().use { check(bitmap.compress(Bitmap.CompressFormat.WEBP_LOSSY, LOSSY_QUALITY, it)) { "Falha ao comprimir a capa" } }
+                check(tmp.renameTo(File(dir, name))) { "Falha ao gravar a capa" }
+            } finally {
+                tmp.delete()
+            }
+            return name
+        } finally {
+            bitmap.recycle()
+        }
     }
 
     fun delete(bookId: Long, fileName: String) {

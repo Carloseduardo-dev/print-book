@@ -1,6 +1,7 @@
 package com.printbook.app.data.repository
 
 import android.graphics.Bitmap
+import android.net.Uri
 import com.printbook.app.data.db.dao.BookDao
 import com.printbook.app.data.db.dao.BookWithCover
 import com.printbook.app.data.db.dao.BookmarkDao
@@ -55,6 +56,8 @@ class BookRepository @Inject constructor(
     fun observeInCollection(collectionId: Long) = bookDao.observeInCollection(collectionId)
     fun observeBook(id: Long): Flow<BookEntity?> = bookDao.observe(id)
     fun observePages(bookId: Long): Flow<List<PageEntity>> = pageDao.observeForBook(bookId)
+    fun observeRecentPages(bookId: Long, limit: Int): Flow<List<PageEntity>> = pageDao.observeRecent(bookId, limit)
+    fun observePageCount(bookId: Long): Flow<Int> = pageDao.observeCount(bookId)
     fun observeCapturing(): Flow<List<BookEntity>> = bookDao.observeCapturing()
     fun observeCollections(): Flow<List<CollectionEntity>> = collectionDao.observeAll()
     fun observeCollectionIds(bookId: Long): Flow<List<Long>> = collectionDao.observeCollectionIdsForBook(bookId)
@@ -76,22 +79,41 @@ class BookRepository @Inject constructor(
 
     suspend fun setFavorite(id: Long, favorite: Boolean) = bookDao.setFavorite(id, favorite)
     suspend fun setProgress(id: Long, position: Int) = bookDao.setProgress(id, position)
-    /** Usa uma página como capa (e descarta a capa própria, se houver). */
+    /** Serializa as trocas de capa (evita arquivos de capa órfãos em trocas seguidas). */
+    private val coverLock = Mutex()
+
+    /** Usa uma página como capa (e descarta a capa própria, se houver). Banco primeiro, arquivo depois. */
     suspend fun setCover(id: Long, pageId: Long?) = withContext(Dispatchers.IO) {
-        bookDao.get(id)?.customCoverFile?.let { files.delete(id, it) }
-        bookDao.setCover(id, pageId)
+        coverLock.withLock {
+            val old = bookDao.get(id)?.customCoverFile
+            bookDao.setCover(id, pageId)
+            old?.let { files.delete(id, it) }
+        }
     }
 
-    /** Capa própria a partir de uma imagem (ex.: escolhida no Photo Picker). */
-    suspend fun setCustomCover(id: Long, bitmap: Bitmap) = withContext(Dispatchers.IO) {
-        val old = bookDao.get(id)?.customCoverFile
-        val name = files.writeCover(id, bitmap)
-        bookDao.setCustomCover(id, name)
-        old?.let { files.delete(id, it) }
+    /**
+     * Capa própria a partir de uma imagem do Photo Picker. Decodifica já reduzida, grava e só então
+     * troca no banco. Devolve falha (sem derrubar o app) se a imagem não abrir ou faltar espaço.
+     */
+    suspend fun setCustomCover(id: Long, uri: Uri): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            coverLock.withLock {
+                val name = files.writeCover(id, uri)
+                val old = bookDao.get(id)?.customCoverFile
+                try {
+                    bookDao.setCustomCover(id, name)
+                } catch (e: Exception) {
+                    files.delete(id, name)
+                    throw e
+                }
+                if (old != null) files.delete(id, old)
+            }
+        }
     }
 
     /** Volta à capa padrão (primeira página). */
     suspend fun removeCover(id: Long) = setCover(id, null)
+
     /** Conclui a captura e enfileira o OCR (busca no texto / voz alta). */
     suspend fun markReady(id: Long) {
         bookDao.setStatus(id, BookStatus.READY)
@@ -135,15 +157,21 @@ class BookRepository @Inject constructor(
         }
     }
 
+    /**
+     * Exclui páginas. Usa o mesmo lock da inserção (a bolha pode excluir durante uma captura) e só
+     * esquece a página-capa, nunca a capa própria.
+     */
     suspend fun deletePages(bookId: Long, pageIds: Set<Long>) = withContext(Dispatchers.IO) {
-        val pages = pageDao.getByIds(pageIds.toList())
-        pageDao.deleteAll(pages)
-        pages.forEach { files.delete(bookId, it.fileName) }
-        val remaining = pageDao.getForBook(bookId)
-        editor.reorder(bookId, remaining.map { it.id })
-        val book = bookDao.get(bookId)
-        if (book?.coverPageId != null && book.coverPageId in pageIds) bookDao.setCover(bookId, null)
-        bookDao.refreshStats(bookId)
+        insertLock.withLock {
+            val pages = pageDao.getByIds(pageIds.toList())
+            pageDao.deleteAll(pages)
+            pages.forEach { files.delete(bookId, it.fileName) }
+            val remaining = pageDao.getForBook(bookId)
+            editor.reorder(bookId, remaining.map { it.id })
+            val book = bookDao.get(bookId)
+            if (book?.coverPageId != null && book.coverPageId in pageIds) bookDao.clearCoverPage(bookId)
+            bookDao.refreshStats(bookId)
+        }
     }
 
     suspend fun reorderPages(bookId: Long, orderedIds: List<Long>) = editor.reorder(bookId, orderedIds)

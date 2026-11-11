@@ -30,6 +30,10 @@ class OverlayWindowManager(private val context: Context) {
         y = 700
     }
 
+    /** Posição escolhida pelo usuário (arrastando). A janela real é essa posição limitada à tela. */
+    private var anchorX = params.x
+    private var anchorY = params.y
+
     val isShowing: Boolean get() = view != null
 
     fun show(content: @Composable (onDrag: (Float, Float) -> Unit) -> Unit) {
@@ -40,6 +44,10 @@ class OverlayWindowManager(private val context: Context) {
             setViewTreeSavedStateRegistryOwner(owner)
             setViewTreeViewModelStoreOwner(owner)
             setContent { content(::moveBy) }
+            // A janela muda de tamanho (ex.: painel de revisão aberto): reposiciona para caber na tela.
+            addOnLayoutChangeListener { v, l, t, r, b, ol, ot, or_, ob ->
+                if (r - l != or_ - ol || b - t != ob - ot) v.post { applyPosition() }
+            }
         }
         windowManager.addView(composeView, params)
         owner.resume()
@@ -47,10 +55,18 @@ class OverlayWindowManager(private val context: Context) {
     }
 
     private fun moveBy(dx: Float, dy: Float) {
+        anchorX = params.x + dx.toInt()
+        anchorY = params.y + dy.toInt()
+        applyPosition()
+    }
+
+    /** Mantém a janela inteira dentro da tela (bolha + painel), partindo da posição escolhida. */
+    private fun applyPosition() {
         val v = view ?: return
-        params.x += dx.toInt()
-        params.y += dy.toInt()
-        windowManager.updateViewLayout(v, params)
+        val screen = windowManager.currentWindowMetrics.bounds
+        params.x = anchorX.coerceIn(0, (screen.width() - v.width).coerceAtLeast(0))
+        params.y = anchorY.coerceIn(0, (screen.height() - v.height).coerceAtLeast(0))
+        runCatching { windowManager.updateViewLayout(v, params) }
     }
 
     /**

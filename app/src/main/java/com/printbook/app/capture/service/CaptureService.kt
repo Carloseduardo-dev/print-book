@@ -29,6 +29,8 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -64,6 +66,10 @@ class CaptureService : LifecycleService() {
     private var userStopped = false
     private var lastSavedPageId: Long? = null
     private var previewJob: Job? = null
+    /** Páginas salvas nesta sessão (só elas descontam do contador ao excluir). */
+    private val sessionPageIds = mutableSetOf<Long>()
+    /** Exclusões em andamento (ignora toques repetidos). */
+    private val deletingPages = mutableSetOf<Long>()
 
     /** Resultado de uma tentativa de captura. */
     private enum class Outcome { SAVED, DUPLICATE, BLACK, FAILED }
@@ -103,6 +109,7 @@ class CaptureService : LifecycleService() {
         profile = CaptureProfile.forApp(cfg.sourceApp)
         userStopped = false
         lastSavedSignature = null
+        sessionPageIds.clear()
 
         val newSession = ProjectionSession(this, projection, onStopped = {
             lifecycleScope.launch { stopCapture() }
@@ -115,14 +122,15 @@ class CaptureService : LifecycleService() {
                 frameWidth = newSession.width, frameHeight = newSession.height,
             )
         }
-        // Páginas do livro (mais recentes primeiro) para o preview e a revisão na bolha.
+        // Últimas páginas do livro (mais recentes primeiro) e total, para o preview e a revisão na bolha.
         previewJob?.cancel()
         previewJob = lifecycleScope.launch {
-            books.observePages(cfg.bookId).collect { pages ->
-                val thumbs = pages.asReversed().take(PREVIEW_LIMIT).map {
-                    PageThumb(it.id, books.pageFile(cfg.bookId, it.fileName), it.position, it.rotation)
+            combine(books.observeRecentPages(cfg.bookId, PREVIEW_LIMIT), books.observePageCount(cfg.bookId)) { pages, count ->
+                pages.map { PageThumb(it.id, books.pageFile(cfg.bookId, it.fileName), it.position, it.rotation) } to count
+            }.collect { (thumbs, count) ->
+                stateHolder.update {
+                    it.copy(bookPages = count, recentPages = thumbs, reviewOpen = it.reviewOpen && thumbs.isNotEmpty())
                 }
-                stateHolder.update { it.copy(bookPages = pages.size, recentPages = thumbs) }
             }
         }
 
@@ -135,7 +143,7 @@ class CaptureService : LifecycleService() {
                     stateHolder = stateHolder,
                     onDrag = onDrag,
                     onPrimary = ::onBubblePrimary,
-                    onReviewOpened = ::pauseAutoForReview,
+                    onToggleReview = ::toggleReview,
                     onDeletePage = ::deleteCapturedPage,
                     onFinish = {
                         userStopped = true
@@ -147,32 +155,53 @@ class CaptureService : LifecycleService() {
     }
 
     /** Abrir o painel de revisão pausa o (semi)automático: o gesto de virar poderia acertar o painel. */
-    private fun pauseAutoForReview() {
-        val running = autoJob ?: return
-        autoJob = null
-        running.cancel()
-        stateHolder.update { it.copy(autoActive = false) }
+    private fun toggleReview() {
+        val opening = !stateHolder.state.value.reviewOpen
+        if (opening) {
+            autoJob?.let { running ->
+                autoJob = null
+                running.cancel()
+            }
+        }
+        stateHolder.update {
+            it.copy(reviewOpen = opening && it.recentPages.isNotEmpty(), autoActive = if (opening) false else it.autoActive)
+        }
     }
 
     /**
-     * Exclui uma página capturada pelo painel da bolha (ex.: saiu ruim ou entrou uma notificação).
-     * Se era a última salva, esquece a assinatura para o dedupe não bloquear a recaptura.
+     * Exclui uma página pelo painel da bolha (ex.: saiu ruim ou entrou uma notificação).
+     * Só desconta do contador da sessão se a página foi capturada nesta sessão. Roda até o fim
+     * mesmo que a captura seja concluída logo em seguida (NonCancellable).
      */
     private fun deleteCapturedPage(pageId: Long) {
         val cfg = config ?: return
+        if (!deletingPages.add(pageId)) return // toque repetido na mesma página
         lifecycleScope.launch {
+            try {
+                withContext(NonCancellable) { books.deletePages(cfg.bookId, setOf(pageId)) }
+            } finally {
+                deletingPages.remove(pageId)
+            }
             if (pageId == lastSavedPageId) {
                 lastSavedSignature = null
                 lastSavedPageId = null
             }
-            books.deletePages(cfg.bookId, setOf(pageId))
-            stateHolder.update { it.copy(captured = (it.captured - 1).coerceAtLeast(0), warning = null) }
+            val fromThisSession = sessionPageIds.remove(pageId)
+            stateHolder.update {
+                it.copy(captured = if (fromThisSession) (it.captured - 1).coerceAtLeast(0) else it.captured, warning = null)
+            }
+            if (fromThisSession) updateNotification(stateHolder.state.value.captured)
         }
     }
 
     /** Toque no botão principal: captura (manual) ou liga/pausa o semiautomático/automático. */
     private fun onBubblePrimary() {
         val cfg = config ?: return
+        // Com o painel aberto, o botão principal só fecha a revisão (não religa o automático por baixo dele).
+        if (stateHolder.state.value.reviewOpen) {
+            stateHolder.update { it.copy(reviewOpen = false) }
+            return
+        }
         if (cfg.mode == CaptureMode.MANUAL) {
             lifecycleScope.launch { captureOnce() }
             return
@@ -365,6 +394,7 @@ class CaptureService : LifecycleService() {
         }
         lastSavedSignature = page.signature
         lastSavedPageId = saved.pageId
+        sessionPageIds += saved.pageId
         Log.i(TAG, "Página ${saved.position + 1}: ${page.crop.width}x${page.crop.height}, ${saved.bytes / 1024} KB, encode ${saved.encodeMs} ms")
         stateHolder.update {
             it.copy(
@@ -403,7 +433,7 @@ class CaptureService : LifecycleService() {
             lifecycleScope.launch(Dispatchers.IO) { books.markReady(cfg.bookId) }
         }
         stateHolder.update {
-            it.copy(running = false, busy = false, autoActive = false, interrupted = hadSession && !userStopped)
+            it.copy(running = false, busy = false, autoActive = false, reviewOpen = false, interrupted = hadSession && !userStopped)
         }
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()

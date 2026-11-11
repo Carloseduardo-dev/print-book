@@ -2,6 +2,8 @@ package com.printbook.app.ui.navigation
 
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -83,7 +85,9 @@ fun PrintBookNavHost() {
         NavHost(
             navController = navController,
             startDestination = HomeRoute,
-            modifier = Modifier.padding(innerPadding),
+            // Consome o inset de baixo já aplicado (barra de abas): imePadding nas telas não soma de novo.
+            modifier = Modifier.padding(innerPadding)
+                .consumeWindowInsets(PaddingValues(bottom = innerPadding.calculateBottomPadding())),
         ) {
             composable<HomeRoute> {
                 HomeScreen(

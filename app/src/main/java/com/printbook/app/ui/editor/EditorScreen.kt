@@ -188,7 +188,9 @@ fun EditorScreen(
         ) {
             itemsIndexed(state.pages, key = { _, p -> p.id }) { index, page ->
                 val isSelected = page.id in state.selected
-                val isCover = state.book?.coverPageId == page.id || (state.book?.coverPageId == null && index == 0)
+                // Com capa própria (galeria), nenhuma página é a capa.
+                val isCover = state.book?.customCoverFile == null &&
+                    (state.book?.coverPageId == page.id || (state.book?.coverPageId == null && index == 0))
                 Box(
                     Modifier
                         .fillMaxWidth()

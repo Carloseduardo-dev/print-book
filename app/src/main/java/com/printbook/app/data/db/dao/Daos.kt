@@ -80,6 +80,10 @@ interface BookDao {
     @Query("UPDATE books SET customCoverFile = :fileName, updatedAt = :now WHERE id = :id")
     suspend fun setCustomCover(id: Long, fileName: String?, now: Long = System.currentTimeMillis())
 
+    /** Só esquece a página escolhida como capa (a capa própria, se houver, continua valendo). */
+    @Query("UPDATE books SET coverPageId = NULL, updatedAt = :now WHERE id = :id")
+    suspend fun clearCoverPage(id: Long, now: Long = System.currentTimeMillis())
+
     @Query("UPDATE books SET status = :status, updatedAt = :now WHERE id = :id")
     suspend fun setStatus(id: Long, status: com.printbook.app.data.db.entity.BookStatus, now: Long = System.currentTimeMillis())
 
@@ -101,6 +105,13 @@ interface PageDao {
 
     @Query("SELECT * FROM pages WHERE bookId = :bookId ORDER BY position")
     fun observeForBook(bookId: Long): Flow<List<PageEntity>>
+
+    /** Últimas páginas (mais recentes primeiro): preview da bolha sem carregar o livro inteiro. */
+    @Query("SELECT * FROM pages WHERE bookId = :bookId ORDER BY position DESC LIMIT :limit")
+    fun observeRecent(bookId: Long, limit: Int): Flow<List<PageEntity>>
+
+    @Query("SELECT COUNT(*) FROM pages WHERE bookId = :bookId")
+    fun observeCount(bookId: Long): Flow<Int>
 
     @Query("SELECT * FROM pages WHERE bookId = :bookId ORDER BY position")
     suspend fun getForBook(bookId: Long): List<PageEntity>

@@ -306,17 +306,21 @@ private fun ReaderContent(state: ReaderUiState, book: BookEntity, viewModel: Rea
         }
 
         AnimatedVisibility(chromeVisible, enter = fadeIn(), exit = fadeOut(), modifier = Modifier.align(Alignment.BottomCenter)) {
+            Column {
+            // Balão de pré-visualização flutua sobre a página, acima da barra (não aumenta a barra).
+            if (scrubbing && pages.size > 1) {
+                Box(Modifier.padding(horizontal = 16.dp)) {
+                    ScrubPreview(
+                        file = viewModel.file(pages[shownPage]),
+                        rotation = pages[shownPage].rotation,
+                        label = "p. ${shownPage + 1}",
+                        fraction = ReaderMath.fraction(shownPage, pages.lastIndex),
+                    )
+                }
+            }
             Surface(color = Color.Black.copy(alpha = 0.9f), contentColor = Color.White) {
                 Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp)) {
                     if (pages.size > 1) {
-                        if (scrubbing) {
-                            ScrubPreview(
-                                file = viewModel.file(pages[shownPage]),
-                                rotation = pages[shownPage].rotation,
-                                label = "p. ${shownPage + 1}",
-                                fraction = ReaderMath.fraction(shownPage, pages.lastIndex),
-                            )
-                        }
                         AuraSlider(
                             value = if (scrubbing) scrubValue else pagerState.currentPage.toFloat(),
                             onValueChange = { scrubbing = true; scrubValue = it },
@@ -346,6 +350,7 @@ private fun ReaderContent(state: ReaderUiState, book: BookEntity, viewModel: Rea
                         }
                     }
                 }
+            }
             }
         }
     }

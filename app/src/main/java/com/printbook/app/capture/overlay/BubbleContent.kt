@@ -76,14 +76,14 @@ fun BubbleContent(
     stateHolder: CaptureStateHolder,
     onDrag: (Float, Float) -> Unit,
     onPrimary: () -> Unit,
-    onReviewOpened: () -> Unit,
+    onToggleReview: () -> Unit,
     onDeletePage: (Long) -> Unit,
     onFinish: () -> Unit,
 ) {
     val state by stateHolder.state.collectAsStateWithLifecycle()
     val semiAuto = state.config?.mode != null && state.config?.mode != CaptureMode.MANUAL
     val warning = state.warning != null && !state.autoActive
-    var reviewOpen by remember { mutableStateOf(false) }
+    val reviewOpen = state.reviewOpen
     val latest = state.recentPages.firstOrNull()
 
     Row(
@@ -115,6 +115,7 @@ fun BubbleContent(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             val description = when {
+                reviewOpen -> "Fechar revisão"
                 !semiAuto -> "Capturar página"
                 state.autoActive -> "Pausar captura automática"
                 else -> "Iniciar captura automática"
@@ -154,10 +155,7 @@ fun BubbleContent(
                             color = if (reviewOpen) CopperDark else Color(0xFF4A443A),
                             shape = RoundedCornerShape(6.dp),
                         )
-                        .clickable {
-                            reviewOpen = !reviewOpen
-                            if (reviewOpen) onReviewOpened()
-                        },
+                        .clickable(onClick = onToggleReview),
                 )
             }
             Box(
@@ -177,7 +175,7 @@ fun BubbleContent(
             ReviewPanel(
                 pages = state.recentPages,
                 onDelete = onDeletePage,
-                onClose = { reviewOpen = false },
+                onClose = onToggleReview,
             )
         }
     }
@@ -244,7 +242,12 @@ private fun ReviewPanel(pages: List<PageThumb>, onDelete: (Long) -> Unit, onClos
                 .clip(RoundedCornerShape(12.dp))
                 .background(if (confirming) WarnDark else Color(0xFF2A2620))
                 .clickable {
-                    if (confirming) onDelete(selected.id) else confirming = true
+                    if (confirming) {
+                        confirming = false // desarma já: um terceiro toque não exclui de novo
+                        onDelete(selected.id)
+                    } else {
+                        confirming = true
+                    }
                 }
                 .padding(vertical = 10.dp),
             horizontalArrangement = Arrangement.Center,
