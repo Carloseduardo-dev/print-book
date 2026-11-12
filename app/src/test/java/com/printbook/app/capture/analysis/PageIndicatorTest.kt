@@ -50,4 +50,13 @@ class PageIndicatorTest {
     fun `ignora fracao invalida`() {
         assertThat(PageIndicator.parse("600 / 553")).isNull()
     }
+
+    @Test
+    fun `capa e paginas iniciais guardam so o total`() {
+        val capa = PageIndicator.parse("Capa / 553")!!
+        assertThat(capa.total).isEqualTo(553)
+        assertThat(capa.current).isNull()
+        assertThat(capa.pagesToCapture).isNull()
+        assertThat(PageIndicator.parse("iv / 553")!!.total).isEqualTo(553)
+    }
 }

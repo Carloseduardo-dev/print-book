@@ -36,6 +36,16 @@ class AutoCaptureTrigger(
         stableCount = 0
     }
 
+    /**
+     * O quadro "estável" era a virada travada no meio: volta a esperar a página nova estabilizar,
+     * mantendo a referência.
+     */
+    fun rejectSettled() {
+        state = State.SETTLING
+        stableCount = 0
+        anchor = null
+    }
+
     /** Última amostra recebida (quando [onSample] devolve true, é a página estável que disparou). */
     val lastSample: FrameSignature? get() = previous
 

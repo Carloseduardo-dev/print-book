@@ -30,6 +30,8 @@ data class PageIndicator(
         private val location = Regex("""localiza[çc][ãa]o\s+(\d{1,6})\s+de\s+(\d{1,6})""", RegexOption.IGNORE_CASE)
         private val remainingRx = Regex("""(\d{1,5})\s+p[áa]ginas?\s+restantes?(\s+no\s+cap[íi]tulo)?""", RegexOption.IGNORE_CASE)
         private val percentRx = Regex("""(?<!\d)(\d{1,3})\s*%""")
+        /** Página sem número, antes da página 1: "Capa / 553", "iv / 553". Só o total serve. */
+        private val labelSlash = Regex("""(?<![\p{L}\d])([\p{L}]{1,12})\s*/\s*(\d{1,5})(?!\d)""")
 
         /** @return null se o texto não tem nenhum indicador reconhecível. */
         fun parse(text: String): PageIndicator? {
@@ -46,6 +48,10 @@ data class PageIndicator(
             slash.findAll(text).forEach { m ->
                 val (c, t) = m.destructured
                 if (c.toInt() in 1..t.toInt() && t.toInt() > 1) return PageIndicator(c.toInt(), t.toInt(), percent = percent)
+            }
+            labelSlash.find(text)?.let { m ->
+                val total = m.groupValues[2].toInt()
+                if (total > 1) return PageIndicator(total = total, percent = percent)
             }
             remainingRx.find(text)?.let { m ->
                 val chapterOnly = m.groupValues[2].isNotBlank()
