@@ -120,6 +120,10 @@ class BookRepository @Inject constructor(
         work.enqueueOcr(id)
     }
 
+    // ---- Compactar ----
+    fun compact(id: Long, quality: PageQuality) = work.enqueueCompact(id, quality)
+    fun observeCompact(id: Long) = work.observeCompact(id)
+
     // ---- Texto (OCR) e busca ----
     fun observeOcrProgress(bookId: Long): Flow<OcrProgress> = pageText.observeProgress(bookId)
     suspend fun pageText(pageId: Long): String? = pageText.textFor(pageId)

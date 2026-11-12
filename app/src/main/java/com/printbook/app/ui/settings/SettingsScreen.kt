@@ -64,6 +64,7 @@ class SettingsViewModel @Inject constructor(
     fun setVolumeKeys(v: Boolean) = viewModelScope.launch { repo.setVolumeKeysTurnPages(v) }
     fun setQuality(v: PageQuality) = viewModelScope.launch { repo.setPageQuality(v) }
     fun setInterval(v: Long) = viewModelScope.launch { repo.setAutoIntervalMs(v) }
+    fun setTurbo(v: Boolean) = viewModelScope.launch { repo.setTurbo(v) }
     fun setMaxPages(v: Int) = viewModelScope.launch { repo.setMaxPagesPerSession(v) }
 }
 
@@ -103,6 +104,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             }
             SwitchRow("Recortar barras e margens", s.autoCrop, viewModel::setAutoCrop)
             SwitchRow("Ignorar páginas repetidas", s.skipDuplicates, viewModel::setSkipDuplicates)
+            SwitchRow("Turbo (Semi e Automático)", s.turbo, viewModel::setTurbo)
             Text("Qualidade das páginas", style = MaterialTheme.typography.bodyMedium)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PageQuality.entries.forEach { FilterChip(s.pageQuality == it, { viewModel.setQuality(it) }, { Text(it.label) }) }

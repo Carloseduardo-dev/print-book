@@ -31,4 +31,19 @@ object CaptureNotification {
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .build()
     }
+
+    /** Notificação final (não fixa): tocar abre o livro capturado. */
+    fun finished(context: Context, bookId: Long, title: String, pages: Int): Notification {
+        val open = PendingIntent.getActivity(
+            context, 2, MainActivity.openBookIntent(context, bookId),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        )
+        return NotificationCompat.Builder(context, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_menu_camera)
+            .setContentTitle("Captura concluída")
+            .setContentText("$pages páginas em \"$title\". Toque para abrir.")
+            .setAutoCancel(true)
+            .setContentIntent(open)
+            .build()
+    }
 }

@@ -426,21 +426,10 @@ private fun ScrubPreview(file: File, rotation: Int, label: String, fraction: Flo
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             // Enquanto a página nova decodifica, mostra a última que carregou (o balão nunca fica vazio).
-            val context = androidx.compose.ui.platform.LocalContext.current
-            var lastLoaded by remember { mutableStateOf<String?>(null) }
-            val key = "scrub-${file.name}-$rotation"
-            val request = remember(key) {
-                coil3.request.ImageRequest.Builder(context)
-                    .data(file)
-                    .size(240)
-                    .memoryCacheKey(key)
-                    .placeholderMemoryCacheKey(lastLoaded)
-                    .apply { if (rotation % 360 != 0) transformations(RotateTransformation(rotation)) }
-                    .build()
-            }
+            val smooth = com.printbook.app.ui.components.rememberSmoothPageRequest(file, rotation, 240, "scrub")
             coil3.compose.AsyncImage(
-                model = request,
-                onSuccess = { lastLoaded = key },
+                model = smooth.request,
+                onSuccess = { smooth.onLoaded() },
                 contentDescription = null,
                 contentScale = androidx.compose.ui.layout.ContentScale.Fit,
                 modifier = Modifier.width(80.dp).height(110.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp)),

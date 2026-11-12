@@ -73,6 +73,8 @@ import com.printbook.app.ui.components.BookCover
 import com.printbook.app.ui.components.formatBytes
 import com.printbook.app.ui.navigation.BookDetailRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import com.printbook.app.data.prefs.PageQuality
+import com.printbook.app.work.CompactStatus
 import com.printbook.app.export.BookExporter
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -142,6 +144,11 @@ class BookDetailViewModel @Inject constructor(
 
     fun removeCover() = viewModelScope.launch { books.removeCover(bookId) }
 
+    /** Progresso/resultado da compactação ("Liberar espaço"). */
+    val compact: StateFlow<CompactStatus?> =
+        books.observeCompact(bookId).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+    fun compact(quality: PageQuality) = books.compact(bookId, quality)
+
     fun toggleFavorite(current: Boolean) = viewModelScope.launch { books.setFavorite(bookId, !current) }
     fun rename(title: String, author: String) = viewModelScope.launch { books.rename(bookId, title, author) }
     fun markReady() = viewModelScope.launch { books.markReady(bookId) }
@@ -164,6 +171,8 @@ fun BookDetailScreen(
     var collectionsDialog by remember { mutableStateOf(false) }
     var exportWarning by remember { mutableStateOf(false) }
     var coverMenu by remember { mutableStateOf(false) }
+    var compactDialog by remember { mutableStateOf(false) }
+    val compact by viewModel.compact.collectAsStateWithLifecycle()
     val coverError by viewModel.coverError.collectAsStateWithLifecycle()
     val coverPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         if (uri != null) viewModel.setCustomCover(uri)
@@ -292,6 +301,29 @@ fun BookDetailScreen(
                 Icon(Icons.Outlined.GridView, null)
                 Text("  Editar páginas")
             }
+            if (book.pageCount > 0 && book.status != BookStatus.CAPTURING) {
+                when (val c = compact) {
+                    is CompactStatus.Running -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            if (c.total > 0) "Compactando: ${c.done} de ${c.total} páginas" else "Preparando a compactação...",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        AuraProgressBar(progress = if (c.total > 0) c.done.toFloat() / c.total else 0f, modifier = Modifier.fillMaxWidth())
+                    }
+                    else -> {
+                        OutlinedButton(onClick = { compactDialog = true }, modifier = Modifier.fillMaxWidth()) {
+                            Text("Liberar espaço")
+                        }
+                        if (c is CompactStatus.Done) {
+                            Text(
+                                if (c.freedBytes > 0) "Liberou ${formatBytes(c.freedBytes)}." else "Este livro já estava compactado.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
             OutlinedButton(onClick = { collectionsDialog = true }, modifier = Modifier.fillMaxWidth()) {
                 Text(if (state.memberOf.isEmpty()) "Adicionar a uma coleção" else "Coleções (${state.memberOf.size})")
             }
@@ -364,6 +396,26 @@ fun BookDetailScreen(
                 }) { Text("Escolher onde salvar") }
             },
             dismissButton = { TextButton(onClick = { exportWarning = false }) { Text("Cancelar") } },
+        )
+    }
+
+    if (compactDialog && book != null) {
+        AlertDialog(
+            onDismissRequest = { compactDialog = false },
+            title = { Text("Liberar espaço") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Hoje este livro ocupa ${formatBytes(book.totalBytes)}. As páginas são recodificadas no aparelho, em segundo plano.")
+                    Text("Econômica: cerca de metade do espaço, mantém as cores.", style = MaterialTheme.typography.bodySmall)
+                    Text("Texto: o menor tamanho (cerca de 1/3), em tons de cinza e sem perder nitidez. Perde as cores das figuras.", style = MaterialTheme.typography.bodySmall)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { compactDialog = false; viewModel.compact(PageQuality.ECONOMICA) }) { Text("Econômica") }
+            },
+            dismissButton = {
+                TextButton(onClick = { compactDialog = false; viewModel.compact(PageQuality.TEXTO) }) { Text("Texto") }
+            },
         )
     }
 

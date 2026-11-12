@@ -258,9 +258,15 @@ fun CaptureScreen(
                                 buildList {
                                     add(
                                         when (settings.captureMode) {
-                                            CaptureMode.AUTO -> "Vira as páginas sozinho a cada ${"%.1f".format(settings.autoIntervalMs / 1000.0)} s" +
-                                                if (settings.maxPagesPerSession > 0) ", até ${settings.maxPagesPerSession} páginas" else ""
-                                            CaptureMode.SEMI_AUTO -> "Captura quando você vira a página"
+                                            CaptureMode.AUTO -> (if (settings.turbo) "Vira as páginas sozinho em cerca de 1 s (Turbo)"
+                                                else "Vira as páginas sozinho a cada ${"%.1f".format(settings.autoIntervalMs / 1000.0)} s") +
+                                                when {
+                                                    settings.wholeBook && viewModel.supportsAutomation -> ", até o fim do livro"
+                                                    settings.maxPagesPerSession > 0 -> ", até ${settings.maxPagesPerSession} páginas"
+                                                    else -> ""
+                                                }
+                                            CaptureMode.SEMI_AUTO -> if (settings.turbo) "Captura logo que você vira a página (Turbo)"
+                                                else "Captura quando você vira a página"
                                             CaptureMode.MANUAL -> "Captura a cada toque na bolha"
                                         } to true,
                                     )
@@ -272,6 +278,26 @@ fun CaptureScreen(
                             HorizontalDivider()
                             SwitchRow("Recortar barras e margens", settings.autoCrop, viewModel::setAutoCrop)
                             SwitchRow("Ignorar páginas repetidas", settings.skipDuplicates, viewModel::setSkipDuplicates)
+                            if (settings.captureMode != CaptureMode.MANUAL) {
+                                SwitchRow("Turbo", settings.turbo, viewModel::setTurbo)
+                                if (settings.turbo) {
+                                    Text(
+                                        "Vira e captura em cerca de 1 s por página. Viradas muito rápidas podem chamar a atenção do app de leitura.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            if (settings.captureMode == CaptureMode.AUTO && viewModel.supportsAutomation) {
+                                SwitchRow("Capturar o livro todo", settings.wholeBook, viewModel::setWholeBook)
+                                if (settings.wholeBook) {
+                                    Text(
+                                        "Lê o total de páginas no app de leitura e mostra o progresso e o tempo restante. Comece na página onde quer iniciar.",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
                             Text("Qualidade das páginas", style = MaterialTheme.typography.bodyMedium)
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 PageQuality.entries.forEach { q ->

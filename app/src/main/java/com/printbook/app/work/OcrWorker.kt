@@ -10,6 +10,7 @@ import androidx.work.workDataOf
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import com.printbook.app.data.db.dao.PageDao
 import com.printbook.app.data.db.dao.PageTextDao
 import com.printbook.app.data.db.entity.OcrState
 import com.printbook.app.data.db.entity.PageTextEntity
@@ -29,6 +30,7 @@ class OcrWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
     private val dao: PageTextDao,
+    private val pageDao: PageDao,
     private val files: PageFileStore,
 ) : CoroutineWorker(context, params) {
 
@@ -45,8 +47,11 @@ class OcrWorker @AssistedInject constructor(
                 for (page in batch) {
                     if (isStopped) break
                     val start = System.nanoTime()
-                    val file = files.file(bookId, page.fileName)
-                    val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+                    // O arquivo pode ter sido trocado no meio do lote (compactar livro): relê o nome atual.
+                    val bitmap = BitmapFactory.decodeFile(files.file(bookId, page.fileName).absolutePath)
+                        ?: pageDao.getByIds(listOf(page.id)).firstOrNull()?.let {
+                            BitmapFactory.decodeFile(files.file(bookId, it.fileName).absolutePath)
+                        }
                     if (bitmap == null) {
                         dao.setState(page.id, OcrState.FAILED)
                         continue

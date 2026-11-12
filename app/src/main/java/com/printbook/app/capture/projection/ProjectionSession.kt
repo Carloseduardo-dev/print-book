@@ -13,6 +13,7 @@ import android.os.HandlerThread
 import android.util.Log
 import android.view.WindowManager
 import com.printbook.app.capture.analysis.FrameSignature
+import com.printbook.app.capture.analysis.Sharpness
 import kotlinx.coroutines.delay
 
 /**
@@ -130,6 +131,48 @@ class ProjectionSession(
         }
     }
 
+    /**
+     * Nitidez de uma faixa central do quadro mais recente, em resolução real (texto já desenhado
+     * por inteiro × versão provisória borrada). Lida direto do buffer, sem Bitmap.
+     */
+    fun sampleSharpness(): Double? = synchronized(lock) {
+        val img = latest ?: return null
+        val plane = img.planes[0]
+        val buffer = plane.buffer
+        val rowStride = plane.rowStride
+        val pixelStride = plane.pixelStride
+        val w = minOf(SHARP_W, img.width)
+        val h = minOf(SHARP_H, img.height)
+        val x0 = (img.width - w) / 2
+        val y0 = (img.height - h) / 2
+        Sharpness.measure(w, h) { x, y ->
+            val i = (y0 + y) * rowStride + (x0 + x) * pixelStride
+            val r = buffer.get(i).toInt() and 0xFF
+            val g = buffer.get(i + 1).toInt() and 0xFF
+            val b = buffer.get(i + 2).toInt() and 0xFF
+            (r * 77 + g * 150 + b * 29) shr 8
+        }
+    }
+
+    /** Assinatura só de uma região do quadro mais recente (ex.: onde a bolha está). */
+    fun sampleRegion(left: Int, top: Int, right: Int, bottom: Int): FrameSignature? = synchronized(lock) {
+        val img = latest ?: return null
+        val l = left.coerceIn(0, img.width - 1)
+        val t = top.coerceIn(0, img.height - 1)
+        val r = right.coerceIn(l + 1, img.width)
+        val b = bottom.coerceIn(t + 1, img.height)
+        val plane = img.planes[0]
+        val buffer = plane.buffer
+        FrameSignature.sample(r - l, b - t, 24, 24) { x, y ->
+            val i = (t + y) * plane.rowStride + (l + x) * plane.pixelStride
+            (0xFF shl 24) or ((buffer.get(i).toInt() and 0xFF) shl 16) or
+                ((buffer.get(i + 1).toInt() and 0xFF) shl 8) or (buffer.get(i + 2).toInt() and 0xFF)
+        }
+    }
+
+    /** Momento em que chegou o quadro mais recente (System.nanoTime). */
+    val latestFrameNs: Long get() = synchronized(lock) { latestArrivalNs }
+
     private fun Image.toBitmap(): Bitmap {
         val plane = planes[0]
         val buffer = plane.buffer.apply { rewind() }
@@ -156,5 +199,8 @@ class ProjectionSession(
 
     private companion object {
         const val TAG = "ProjectionSession"
+        /** Faixa central usada para medir nitidez (px reais). */
+        const val SHARP_W = 360
+        const val SHARP_H = 64
     }
 }

@@ -62,4 +62,45 @@ class AutoCaptureTriggerTest {
         assertThat(sig(10).meanAbsDiff(sig(30))).isWithin(1e-9).of(20.0)
         assertThat(pageA.meanAbsDiff(pageA)).isEqualTo(0.0)
     }
+
+    @Test
+    fun `armWith arma direto com a pagina capturada e dispara na proxima virada`() {
+        val t = AutoCaptureTrigger()
+        t.armWith(pageA)
+        assertThat(t.state).isEqualTo(AutoCaptureTrigger.State.ARMED)
+        // A mesma página continua na tela: nada dispara.
+        assertThat(t.feed(pageA, pageA, pageA)).doesNotContain(true)
+        // Virou: dispara uma vez quando a nova estabiliza.
+        val fired = t.feed(anim, pageB, pageB, pageB, pageB)
+        assertThat(fired.count { it }).isEqualTo(1)
+        assertThat(t.lastSample).isEqualTo(pageB)
+    }
+
+    @Test
+    fun `turbo com duas amostras estaveis dispara mais cedo`() {
+        val t = AutoCaptureTrigger(stableSamples = 2)
+        t.armWith(pageA)
+        val fired = t.feed(anim, pageB, pageB, pageB)
+        assertThat(fired).containsExactly(false, false, false, true).inOrder()
+    }
+
+    @Test
+    fun `nao captura no fim lento da animacao (pagina ainda deslizando)`() {
+        val t = AutoCaptureTrigger(stableSamples = 3)
+        t.armWith(pageA)
+        // Passos de 0,5 (abaixo do limiar 0,6 entre amostras), mas a tela continua andando:
+        // a cada passo mais metade dos pixels escurece 1 nível.
+        fun step(n: Int) = FrameSignature(8, 8, ByteArray(64) { i -> (160 - (n + (i % 2)) / 2).toByte() })
+        val slide = (0 until 10).map { step(it) }
+        assertThat(t.feed(anim, *slide.toTypedArray())).doesNotContain(true)
+        // Parou de verdade: agora dispara.
+        assertThat(t.feed(pageB, pageB, pageB, pageB)).contains(true)
+    }
+
+    @Test
+    fun `passo de 0,5 seria aceito so pela regra entre amostras`() {
+        fun step(n: Int) = FrameSignature(8, 8, ByteArray(64) { i -> (160 - (n + (i % 2)) / 2).toByte() })
+        assertThat(step(1).meanAbsDiff(step(0))).isLessThan(0.6)
+        assertThat(step(4).meanAbsDiff(step(0))).isGreaterThan(0.6)
+    }
 }

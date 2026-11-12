@@ -22,6 +22,7 @@ enum class CaptureMode(val label: String, val description: String) {
 enum class PageQuality(val label: String, val description: String) {
     MAXIMA("Máxima", "Sem perda (WebP lossless). Maior nitidez, ocupa mais espaço."),
     ECONOMICA("Econômica", "WebP com qualidade 90. Cerca de metade do espaço, ainda nítido."),
+    TEXTO("Texto", "Tons de cinza, sem perda de nitidez. O menor tamanho para livros de texto; perde as cores das figuras."),
 }
 
 /** Intervalos da virada automática (ms) e limites de páginas por sessão (0 = sem limite). */
@@ -48,6 +49,10 @@ data class Settings(
     val autoIntervalMs: Long = 2_500L,
     val maxPagesPerSession: Int = 500,
     val volumeKeysTurnPages: Boolean = true,
+    /** Modo Turbo: viradas e detecção mais rápidas (Semi e Automático). */
+    val turbo: Boolean = false,
+    /** Automático: ler o total de páginas do leitor e capturar até o fim do livro. */
+    val wholeBook: Boolean = false,
 )
 
 @Singleton
@@ -68,6 +73,8 @@ class SettingsRepository @Inject constructor(private val store: DataStore<Prefer
         val autoIntervalMs = longPreferencesKey("auto_interval_ms")
         val maxPagesPerSession = intPreferencesKey("max_pages_per_session")
         val volumeKeys = booleanPreferencesKey("volume_keys")
+        val turbo = booleanPreferencesKey("turbo")
+        val wholeBook = booleanPreferencesKey("whole_book")
     }
 
     val settings: Flow<Settings> = store.data.map { p ->
@@ -87,6 +94,8 @@ class SettingsRepository @Inject constructor(private val store: DataStore<Prefer
             autoIntervalMs = p[Keys.autoIntervalMs] ?: d.autoIntervalMs,
             maxPagesPerSession = p[Keys.maxPagesPerSession] ?: d.maxPagesPerSession,
             volumeKeysTurnPages = p[Keys.volumeKeys] ?: d.volumeKeysTurnPages,
+            turbo = p[Keys.turbo] ?: d.turbo,
+            wholeBook = p[Keys.wholeBook] ?: d.wholeBook,
         )
     }
 
@@ -104,6 +113,8 @@ class SettingsRepository @Inject constructor(private val store: DataStore<Prefer
     suspend fun setAutoIntervalMs(v: Long) = store.edit { it[Keys.autoIntervalMs] = v }
     suspend fun setMaxPagesPerSession(v: Int) = store.edit { it[Keys.maxPagesPerSession] = v }
     suspend fun setVolumeKeysTurnPages(v: Boolean) = store.edit { it[Keys.volumeKeys] = v }
+    suspend fun setTurbo(v: Boolean) = store.edit { it[Keys.turbo] = v }
+    suspend fun setWholeBook(v: Boolean) = store.edit { it[Keys.wholeBook] = v }
 
     private inline fun <reified E : Enum<E>> String?.toEnum(default: E): E =
         this?.let { name -> enumValues<E>().firstOrNull { it.name == name } } ?: default

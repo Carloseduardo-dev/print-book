@@ -122,6 +122,10 @@ interface PageDao {
     @Query("SELECT COALESCE(MAX(position), -1) FROM pages WHERE bookId = :bookId")
     suspend fun maxPosition(bookId: Long): Int
 
+    /** Troca o arquivo de uma página (compactar livro). */
+    @Query("UPDATE pages SET fileName = :fileName, byteSize = :bytes WHERE id = :id")
+    suspend fun updateFile(id: Long, fileName: String, bytes: Long)
+
     @Query("UPDATE pages SET rotation = :rotation WHERE id = :id")
     suspend fun setRotation(id: Long, rotation: Int)
 }

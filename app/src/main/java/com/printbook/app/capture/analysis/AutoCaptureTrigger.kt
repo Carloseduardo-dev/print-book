@@ -23,6 +23,8 @@ class AutoCaptureTrigger(
 
     private var reference: FrameSignature? = null
     private var previous: FrameSignature? = null
+    /** Início da sequência estável atual: a tela não pode "escorregar" devagar a partir dele. */
+    private var anchor: FrameSignature? = null
     private var stableCount = 0
 
     /** Chamado após cada captura (ou ao iniciar): a próxima tela estável vira a referência. */
@@ -30,14 +32,38 @@ class AutoCaptureTrigger(
         state = State.REFERENCE
         reference = null
         previous = null
+        anchor = null
         stableCount = 0
+    }
+
+    /** Última amostra recebida (quando [onSample] devolve true, é a página estável que disparou). */
+    val lastSample: FrameSignature? get() = previous
+
+    /**
+     * Usa [current] (a tela estável que acabou de ser capturada) como referência e já arma a
+     * espera pela próxima virada, sem esperar a tela estabilizar de novo.
+     */
+    fun armWith(current: FrameSignature) {
+        reference = current
+        previous = current
+        anchor = current
+        stableCount = stableSamples
+        state = State.ARMED
     }
 
     /** @return true quando a página nova estabilizou e deve ser capturada. */
     fun onSample(sample: FrameSignature): Boolean {
         val prev = previous
         previous = sample
-        stableCount = if (prev != null && sample.meanAbsDiff(prev) < stableThreshold) stableCount + 1 else 0
+        // Estável = cada amostra perto da anterior E perto do início da sequência. A segunda regra
+        // pega o fim lento da animação de virada (a página ainda deslizando poucos px por quadro).
+        val a = anchor
+        if (prev != null && a != null && sample.meanAbsDiff(prev) < stableThreshold && sample.meanAbsDiff(a) < stableThreshold) {
+            stableCount++
+        } else {
+            stableCount = 0
+            anchor = sample
+        }
         val stable = stableCount >= stableSamples
 
         when (state) {

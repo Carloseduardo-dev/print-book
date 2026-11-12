@@ -11,7 +11,7 @@ Um organizador de leitura para Android que preserva o acesso aos livros quando a
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/compose)
 [![Android](https://img.shields.io/badge/Android-11%2B%20·%20API%2030-3DDC84?logo=android&logoColor=white)](#começando)
-[![Tests](https://img.shields.io/badge/testes%20unitários-41%20passando-4E7A4B)](#qualidade)
+[![Tests](https://img.shields.io/badge/testes%20unitários-64%20passando-4E7A4B)](#qualidade)
 [![Offline](https://img.shields.io/badge/funciona-100%25%20offline-B0602C)](#privacidade-e-uso-responsável)
 
 <img src="docs/screenshots/banner.png" alt="Telas do print-book: início, biblioteca, leitor, busca no texto e captura com a aura" />
@@ -64,7 +64,7 @@ O **print-book** existe para que esse intervalo não interrompa a leitura. Enqua
 
 | | |
 |---|---|
-| ⚡ **Captura automática** | Vira as páginas sozinho e para no fim do livro: **100 páginas em ~6 minutos**, sem intervenção. |
+| ⚡ **Captura automática + Turbo** | Vira as páginas sozinho e para no fim do livro. No modo Turbo, **100 páginas em menos de 2 minutos** (~1,1 s por página), com progresso e tempo restante. |
 | 🔎 **Busca no texto, offline** | OCR no próprio aparelho + índice FTS4 que ignora acentos ("aproximacao" encontra "aproximação"). |
 | 👀 **Revisão na hora** | A bolha mostra a última captura; um toque abre a faixa de miniaturas para conferir e excluir uma página ruim sem sair do app de leitura. |
 | 🎯 **Precisão medida** | **200/200 páginas** capturadas sem perda ou duplicata em teste real; **482/482** páginas indexadas sem falha. |
@@ -102,9 +102,13 @@ O **print-book** existe para que esse intervalo não interrompa a leitura. Enqua
   - **Manual:** um toque por página.
   - **Semiautomático:** o leitor vira a página e o app captura quando a tela estabiliza.
   - **Automático:** o app vira as páginas e reconhece o fim do livro.
+  - **Turbo** (Semi e Automático): ~1,1 s por página, gravando em paralelo com a próxima virada.
+- **Capturar o livro todo:** lê o total de páginas no rodapé do leitor (OCR offline), mostra o progresso e o tempo restante e para na última página.
+- Só captura a página quando ela está **parada e nítida** (sem o fim da animação de virada nem a versão provisória borrada que alguns leitores desenham primeiro).
 - Recorte automático das barras do leitor, dos rodapés de progresso e das margens, por perfil de aplicativo.
 - Descarte de páginas repetidas e aviso imediato se o aplicativo de origem bloquear capturas.
-- Duas qualidades de armazenamento: **Máxima** (WebP sem perda) e **Econômica** (−46% de espaço).
+- Três qualidades: **Máxima** (WebP sem perda), **Econômica** (−46%) e **Texto** (tons de cinza sem perda, −70%).
+- **Liberar espaço:** compacta um livro já salvo em segundo plano (100 páginas: 19,3 MB → 7,5 MB em 9 s).
 
 **Leitura**
 - Zoom por pinça, duplo toque e botões; virada de página por toque nas bordas e pelas teclas de volume.
@@ -223,7 +227,7 @@ Documento completo de arquitetura: [`docs/SYSTEM_DESIGN.md`](docs/SYSTEM_DESIGN.
 
 ## Qualidade
 
-**Testes unitários (JVM):** 41 testes cobrindo detecção de tela preta, gatilho de captura, controlador do modo automático, recorte, utilitários de busca, navegação do leitor e escolha da capa.
+**Testes unitários (JVM):** 64 testes cobrindo detecção de tela preta, gatilho de captura (incluindo o fim lento da animação), nitidez, leitura do indicador de páginas, ritmo e tempo restante, controlador do modo automático, recorte, formato WebP, utilitários de busca, navegação do leitor e escolha da capa.
 
 ```bash
 ./gradlew :app:testPessoalDebugUnitTest
@@ -234,10 +238,12 @@ Documento completo de arquitetura: [`docs/SYSTEM_DESIGN.md`](docs/SYSTEM_DESIGN.
 | Cenário | Resultado |
 |---|---|
 | Captura automática | **100/100 páginas em 5 min 47 s**, 0 duplicatas, parada automática |
+| Captura automática **Turbo** | **100/100 páginas em 1 min 51 s** (~1,1 s/página), 0 perdidas, 0 repetidas, nenhuma no meio da animação |
 | Captura semiautomática (2 livros) | **200/200 páginas**, nenhuma perdida ou repetida |
 | Fim do livro | Detectado sem salvar a tela seguinte à última página |
 | OCR offline | **482/482 páginas, 0 falhas**, de 0,4 a 1,7 s por página |
 | Qualidade Econômica | **−46% de espaço** com texto nítido em resolução real |
+| Qualidade Texto / compactar | **−70% de espaço** sem perda de nitidez (cinza sem perda); livro de 100 páginas compactado em 9 s |
 
 ---
 
@@ -286,7 +292,7 @@ No Android Studio, escolha a variante em **View → Tool Windows → Build Varia
 - [x] Biblioteca, leitor e editor de páginas
 - [x] OCR offline, busca no texto e exportação PDF
 - [x] Design system e identidade visual próprios
-- [ ] Modo Turbo: captura em ~1 s por página
+- [x] Modo Turbo, captura do livro todo e compactação de livros
 - [ ] Leitura em voz alta sobre o texto reconhecido
 - [ ] Publicação da edição para lojas
 

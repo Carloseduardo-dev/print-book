@@ -93,6 +93,32 @@ Bug encontrado e corrigido: no fim da amostra, o Play Livros abre a tela de comp
 
 Decisão: a permissão INTERNET foi mantida (vem do ML Kit; uso futuro possível). Nenhuma função atual depende de rede.
 
+## Teste 7: 2026-11-11, Modo Turbo, livro todo e espaço (feito por Claude via ADB)
+
+Captura de um app só (Minha Biblioteca, *Pré-cálculo*), qualidade Máxima.
+
+| Teste | Resultado |
+|---|---|
+| Automático **Turbo**, limite de 100 | **100/100 páginas em 111 s (~1,1 s/página)**, contra ~3,5 s no modo normal. 0 falhas, 0 repetidas, todas 968×1282 |
+| Automático Turbo, depois da regra anti-"deslize lento" | 69 páginas em 77 s (~1,1 s/página), todas 968×1282 |
+| Folha de miniaturas (100 págs.) | Sem bolha, sem página borrada, sem repetida (menor diferença entre páginas seguidas: 5,3; limiar de repetida: 1,0) |
+| Sonda da bolha | App único: diferença 0,00 → não esconde a bolha a cada página. Tela inteira: 21,8 → continua escondendo |
+| Semi Turbo, viradas manuais a ~1/s | Páginas 172–185 seguidas, sem buraco e sem página no meio da animação. Viradas que o leitor ignorou (durante a animação anterior) não geram captura |
+| Livro todo | OCR do rodapé leu "113 / 553" e "185 / 553". Bolha: "8/441 · ~14 min"; notificação "Página 120 de 553 · ~13 min restantes". O tempo converge para o ritmo real (~7 min para ~390 págs.) |
+| Cartão "Captura concluída" | Aparece só com o print-book fora da tela; "Abrir livro" abre o Detalhe do livro certo |
+| Modo Texto (30 págs. reais) | Máxima 193,5 KB · Econômica 102,7 KB · Texto cinza sem perda **58,3 KB** (−43% da Econômica, −70% da Máxima). Cinza com perda q85 ficou em 87 KB, então o Texto usa cinza **sem perda** |
+| Liberar espaço (Texto) | **19,3 MB → 7,5 MB em 9 s**, com OCR rodando ao mesmo tempo; leitor e busca normais |
+
+Bugs encontrados e corrigidos durante o teste:
+- **Página capturada no meio da animação** (Semi Turbo): o fim da virada do Minha Biblioteca é lento, e 2 amostras parecidas bastavam. Agora a tela também não pode ter "escorregado" desde o início da sequência estável, e o Turbo usa 3 amostras (180 ms).
+- **Virada perdida no Semi**: depois de capturar, o gatilho era armado com uma amostra nova da tela; se a pessoa já tinha virado, a página nova virava a referência. Agora arma com a página que foi capturada.
+- **Miniatura vazia na bolha** no Turbo (troca a cada ~1 s): mostra a anterior até a nova carregar.
+- **Toques no cartão final não chegavam** depois de encerrar o serviço em primeiro plano (One UI): o serviço continua em primeiro plano enquanto o cartão aparece.
+- **OCR × compactação**: o OCR relê o nome do arquivo se a página foi trocada no meio do lote.
+- **O leitor voltou sozinho** de ~p. 165 para p. 45 no meio de uma captura (provável sincronização com a nuvem do Minha Biblioteca). Agora o rodapé é relido a cada 10 páginas: se o leitor voltou, a captura pausa com aviso; se avançou, o progresso é recalculado.
+
+Observação: em 3 de 32 tentativas, um toque `adb input tap` na bolha durante o automático Turbo não chegou à janela. O toque do adb é um evento injetado, como o gesto da Acessibilidade; um toque de dedo não é. Falta confirmar com o dedo.
+
 ## Pendentes
 - [x] Repetir o teste após a correção da bolha (Minha Biblioteca e Kindle)
 - [x] Captura de **um app só**: a bolha não aparece. Quadro de 1080×2340.
@@ -101,12 +127,7 @@ Decisão: a permissão INTERNET foi mantida (vem do ML Kit; uso futuro possível
 
 ## Backlog
 
-- **Modo Turbo (ideia do usuário, 2026-11-11):** captura automática em ~1 s por página, em vez de ~3,5 s.
-  - Virar assim que a página estabilizar, sem intervalo fixo.
-  - Gravar/encodar em paralelo com a próxima virada.
-  - Intervalo mínimo menor.
-  - Estimativa: 100 páginas em ~2 min. Opcional e desligado por padrão, porque viradas muito rápidas aumentam o risco de detecção pelo serviço de leitura.
-  - Capturar o livro inteiro sem exibir as páginas é inviável: exigiria quebrar o DRM dos apps (art. 107 da Lei 9.610), o que está fora de questão.
+- **Modo Turbo:** feito (Teste 7). Capturar o livro inteiro **sem exibir** as páginas continua inviável: exigiria quebrar o DRM dos apps (art. 107 da Lei 9.610), o que está fora de questão. A opção "Capturar o livro todo" vira e mostra cada página.
 - **Leitura em voz alta (adiada pelo usuário em 2026-11-11):**
   - O protótipo usava o `TextToSpeech` do Android (voz pt-BR offline `pt-br-x-afs-seanet-embedded`) sobre o texto do OCR, com avanço automático.
   - Bug encontrado antes de pausar: depois da primeira página, o avanço pulou da página 30 para a 33 sem ler a 31 e a 32 (as duas com texto de 1,8 a 2,8 mil caracteres). Causa ainda não identificada (callbacks `onDone`/`onStop` × `QUEUE_FLUSH`).

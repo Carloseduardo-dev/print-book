@@ -3,7 +3,10 @@ package com.printbook.app.ui.components
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import coil3.request.ImageRequest
 import coil3.request.transformations
@@ -35,5 +38,29 @@ fun rememberPageRequest(file: File, rotation: Int, thumbnailPx: Int = 0): ImageR
             .apply { if (thumbnailPx > 0) size(thumbnailPx) }
             .apply { if (rotation % 360 != 0) transformations(RotateTransformation(rotation)) }
             .build()
+    }
+}
+
+/** Pedido de miniatura + o que chamar quando ela carregar (ver [rememberSmoothPageRequest]). */
+class SmoothPageRequest(val request: ImageRequest, val onLoaded: () -> Unit)
+
+/**
+ * Miniatura que troca rápido (balão do leitor, última captura no Turbo): enquanto a nova página
+ * decodifica, mostra a última que já carregou, então a imagem nunca fica vazia.
+ */
+@Composable
+fun rememberSmoothPageRequest(file: File, rotation: Int, thumbnailPx: Int, cacheTag: String): SmoothPageRequest {
+    val context = LocalContext.current
+    var lastLoaded by remember { mutableStateOf<String?>(null) }
+    val key = "$cacheTag-${file.name}-$rotation-$thumbnailPx"
+    return remember(key) {
+        val request = ImageRequest.Builder(context)
+            .data(file)
+            .size(thumbnailPx)
+            .memoryCacheKey(key)
+            .placeholderMemoryCacheKey(lastLoaded)
+            .apply { if (rotation % 360 != 0) transformations(RotateTransformation(rotation)) }
+            .build()
+        SmoothPageRequest(request) { lastLoaded = key }
     }
 }

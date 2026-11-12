@@ -48,6 +48,8 @@ class CaptureViewModel @Inject constructor(
     fun setAutoCrop(v: Boolean) = viewModelScope.launch { settingsRepo.setAutoCrop(v) }
     fun setSkipDuplicates(v: Boolean) = viewModelScope.launch { settingsRepo.setSkipDuplicates(v) }
     fun setQuality(v: PageQuality) = viewModelScope.launch { settingsRepo.setPageQuality(v) }
+    fun setTurbo(v: Boolean) = viewModelScope.launch { settingsRepo.setTurbo(v) }
+    fun setWholeBook(v: Boolean) = viewModelScope.launch { settingsRepo.setWholeBook(v) }
 
     /**
      * Cria (ou reaproveita) o livro e deixa a configuração pronta para o CaptureService.
@@ -72,6 +74,8 @@ class CaptureViewModel @Inject constructor(
                 quality = s.pageQuality,
                 autoIntervalMs = s.autoIntervalMs,
                 maxPages = s.maxPagesPerSession.takeIf { it > 0 },
+                turbo = s.turbo && s.captureMode != CaptureMode.MANUAL,
+                wholeBook = s.wholeBook && s.captureMode == CaptureMode.AUTO,
             )
             stateHolder.update { it.copy(warning = null, interrupted = false) }
             onReady()

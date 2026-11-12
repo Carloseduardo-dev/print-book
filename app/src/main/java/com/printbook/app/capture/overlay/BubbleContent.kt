@@ -53,6 +53,7 @@ import com.printbook.app.data.prefs.CaptureMode
 import com.printbook.app.ui.components.AuraSpinner
 import com.printbook.app.ui.components.auraBorder
 import com.printbook.app.ui.components.rememberPageRequest
+import com.printbook.app.ui.components.rememberSmoothPageRequest
 import com.printbook.app.ui.theme.AuraDark
 import com.printbook.app.ui.theme.CopperDark
 import com.printbook.app.ui.theme.Geist
@@ -79,8 +80,14 @@ fun BubbleContent(
     onToggleReview: () -> Unit,
     onDeletePage: (Long) -> Unit,
     onFinish: () -> Unit,
+    onOpenBook: () -> Unit,
+    onCloseSummary: () -> Unit,
 ) {
     val state by stateHolder.state.collectAsStateWithLifecycle()
+    state.finished?.let { done ->
+        FinishedCard(done.title, done.pages, onDrag, onOpenBook, onCloseSummary)
+        return
+    }
     val semiAuto = state.config?.mode != null && state.config?.mode != CaptureMode.MANUAL
     val warning = state.warning != null && !state.autoActive
     val reviewOpen = state.reviewOpen
@@ -137,13 +144,23 @@ fun BubbleContent(
                 }
             }
             Text("${state.bookPages}", style = TextStyle(fontFamily = GeistMono, fontWeight = FontWeight.Medium, fontSize = 12.sp, color = PaperText))
+            // "Capturar o livro todo": progresso e tempo restante.
+            state.progressLabel?.let {
+                Text(it, style = TextStyle(fontFamily = GeistMono, fontSize = 9.sp, color = PaperText2))
+            }
+            state.eta?.let {
+                Text(it, style = TextStyle(fontFamily = GeistMono, fontSize = 9.sp, color = CopperDark))
+            }
             if (state.autoStopMessage != null) {
                 Text("fim", style = TextStyle(fontFamily = GeistMono, fontSize = 10.sp, color = CopperDark))
             }
             // Miniatura da última captura: abre o painel de revisão.
             if (latest != null) {
+                // No Turbo a miniatura troca a cada ~1 s: mostra a anterior até a nova carregar.
+                val smooth = rememberSmoothPageRequest(latest.file, latest.rotation, 160, "bubble")
                 AsyncImage(
-                    model = rememberPageRequest(latest.file, latest.rotation, thumbnailPx = 160),
+                    model = smooth.request,
+                    onSuccess = { smooth.onLoaded() },
                     contentDescription = "Revisar capturas",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
@@ -258,6 +275,62 @@ private fun ReviewPanel(pages: List<PageThumb>, onDelete: (Long) -> Unit, onClos
                 if (confirming) "  Toque de novo para excluir" else "  Excluir esta captura",
                 style = label.copy(color = if (confirming) Ink else PaperText),
             )
+        }
+    }
+}
+
+/** Cartão mostrado por alguns segundos depois de concluir: leva direto ao livro capturado. */
+@Composable
+private fun FinishedCard(
+    title: String,
+    pages: Int,
+    onDrag: (Float, Float) -> Unit,
+    onOpenBook: () -> Unit,
+    onClose: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .padding(18.dp)
+            .width(232.dp)
+            .shadow(7.dp, Shape, ambientColor = Color.Black.copy(alpha = 0.35f), spotColor = Color.Black.copy(alpha = 0.45f))
+            .clip(Shape)
+            .background(Surface)
+            .auraBorder(AuraDark, width = 2.dp, cornerRadius = 22.dp, rotationMillis = 4_000, glow = false)
+            .pointerInput(Unit) {
+                detectDragGestures { change, drag ->
+                    change.consume()
+                    onDrag(drag.x, drag.y)
+                }
+            }
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Captura concluída",
+                style = TextStyle(fontFamily = Geist, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = PaperText),
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                Icons.Filled.Close, contentDescription = "Fechar", tint = PaperText2,
+                modifier = Modifier.size(28.dp).clip(RoundedCornerShape(8.dp)).clickable(onClick = onClose).padding(4.dp),
+            )
+        }
+        Text(
+            "$pages ${if (pages == 1) "página salva" else "páginas salvas"} em \"$title\"",
+            style = TextStyle(fontFamily = Geist, fontSize = 12.sp, color = PaperText2),
+            maxLines = 2,
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(CopperDark)
+                .clickable(onClick = onOpenBook)
+                .padding(vertical = 10.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("Abrir livro", style = TextStyle(fontFamily = Geist, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Ink))
         }
     }
 }

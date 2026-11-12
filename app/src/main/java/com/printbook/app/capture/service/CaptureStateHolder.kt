@@ -23,6 +23,9 @@ data class CaptureConfig(
     val autoIntervalMs: Long = 2_500L,
     /** null = sem limite. */
     val maxPages: Int? = 500,
+    val turbo: Boolean = false,
+    /** Automático: capturar até o fim, usando o total de páginas lido do leitor. */
+    val wholeBook: Boolean = false,
 )
 
 data class CaptureUiState(
@@ -47,7 +50,18 @@ data class CaptureUiState(
     val recentPages: List<PageThumb> = emptyList(),
     /** Painel de revisão aberto na bolha (o automático fica pausado enquanto isso). */
     val reviewOpen: Boolean = false,
+    /** "Capturar o livro todo": páginas previstas nesta sessão (null = desconhecido). */
+    val targetPages: Int? = null,
+    /** Progresso curto para a bolha (ex.: "213/1018" ou "37%"). */
+    val progressLabel: String? = null,
+    /** Tempo restante estimado (ex.: "~14 min"). */
+    val eta: String? = null,
+    /** Captura concluída pela bolha: mostra o cartão "Abrir livro" por alguns segundos. */
+    val finished: CaptureFinished? = null,
 )
+
+/** Resumo mostrado no cartão de conclusão da bolha. */
+data class CaptureFinished(val bookId: Long, val title: String, val pages: Int)
 
 /** Miniatura de uma página capturada, para o painel de revisão da bolha. */
 data class PageThumb(val id: Long, val file: File, val position: Int, val rotation: Int)
@@ -57,6 +71,9 @@ data class PageThumb(val id: Long, val file: File, val position: Int, val rotati
 class CaptureStateHolder @Inject constructor() {
     private val _state = MutableStateFlow(CaptureUiState())
     val state: StateFlow<CaptureUiState> = _state.asStateFlow()
+
+    /** O print-book está na tela (MainActivity em primeiro plano)? Evita cartões duplicados. */
+    @Volatile var appVisible: Boolean = false
 
     /** Lida pelo CaptureService ao iniciar. */
     @Volatile var pendingConfig: CaptureConfig? = null

@@ -16,6 +16,7 @@ import com.printbook.app.ui.theme.PrintBook
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -52,8 +53,15 @@ private val tabs = listOf(
 )
 
 @Composable
-fun PrintBookNavHost() {
+fun PrintBookNavHost(openBookId: Long? = null, onBookOpened: () -> Unit = {}) {
     val navController = rememberNavController()
+    // Pedido externo (bolha/notificação) para abrir um livro.
+    LaunchedEffect(openBookId) {
+        if (openBookId != null) {
+            navController.navigate(BookDetailRoute(openBookId)) { launchSingleTop = true }
+            onBookOpened()
+        }
+    }
     val backStackEntry by navController.currentBackStackEntryAsState()
     val destination = backStackEntry?.destination
     val showBottomBar = tabs.any { tab -> destination?.hierarchy?.any { it.hasRoute(tab.routeClass) } == true }

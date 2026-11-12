@@ -90,6 +90,13 @@ class OverlayWindowManager(private val context: Context) {
         runCatching { windowManager.updateViewLayout(v, params) }
     }
 
+    /** Retângulo da janela da bolha na tela (px), ou null se ainda não foi desenhada. */
+    fun windowRect(): android.graphics.Rect? {
+        val v = view ?: return null
+        if (v.width == 0 || v.height == 0) return null
+        return android.graphics.Rect(params.x, params.y, params.x + v.width, params.y + v.height)
+    }
+
     fun dismiss() {
         view?.let { runCatching { windowManager.removeView(it) } }
         view = null
