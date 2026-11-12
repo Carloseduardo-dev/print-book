@@ -58,7 +58,7 @@ class CompactBookWorker @AssistedInject constructor(
         const val KEY_DONE = "done"
         const val KEY_TOTAL = "total"
         const val KEY_FREED = "freed"
-        /** Quando terminou: o resultado só vale para o livro criado antes disso (ids são reaproveitados). */
+        /** Quando terminou: a mensagem de resultado só aparece por um tempo depois disso. */
         const val KEY_FINISHED_AT = "finishedAt"
         private const val TAG = "CompactBookWorker"
     }

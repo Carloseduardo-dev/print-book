@@ -55,7 +55,7 @@ class WorkScheduler @Inject constructor(
             }
         }
 
-    /** Livro apagado: cancela a compactação dele (o id pode ser reaproveitado por um livro novo). */
+    /** Livro apagado: cancela a compactação dele (não há mais o que compactar). */
     fun cancelCompact(bookId: Long) {
         WorkManager.getInstance(context).cancelUniqueWork("compact-$bookId")
     }
@@ -74,12 +74,11 @@ sealed interface CompactStatus {
     data class Running(val done: Int, val total: Int) : CompactStatus
     data class Done(val freedBytes: Long, val finishedAt: Long) : CompactStatus {
         /**
-         * O resultado é deste livro e recente? O WorkManager guarda o histórico por "compact-<id>"
-         * e o banco reaproveita o id de um livro apagado: sem isso, um livro novo herdaria a
-         * mensagem do antigo ("já estava compactado"). Resultados antigos também deixam de aparecer.
+         * O resultado é recente? O WorkManager guarda o histórico de "compact-<id>" por bastante
+         * tempo: sem isso, "Liberou X" / "já estava compactado" aparecia toda vez que o livro era
+         * aberto, mesmo dias depois. Resultado sem horário (versão anterior) não aparece.
          */
-        fun isCurrent(bookCreatedAt: Long, now: Long): Boolean =
-            finishedAt >= bookCreatedAt && now - finishedAt in 0..RESULT_TTL_MS
+        fun isRecent(now: Long): Boolean = finishedAt > 0 && now - finishedAt in 0..RESULT_TTL_MS
 
         companion object {
             const val RESULT_TTL_MS = 30 * 60 * 1000L

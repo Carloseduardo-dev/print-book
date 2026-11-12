@@ -9,27 +9,24 @@ class CompactStatusTest {
     private val minute = 60_000L
 
     @Test
-    fun `resultado recente do proprio livro aparece`() {
-        val done = CompactStatus.Done(freedBytes = 500, finishedAt = now - 2 * minute)
-        assertThat(done.isCurrent(bookCreatedAt = now - 60 * minute, now = now)).isTrue()
+    fun `resultado recente aparece`() {
+        assertThat(CompactStatus.Done(freedBytes = 500, finishedAt = now - 2 * minute).isRecent(now)).isTrue()
+        assertThat(CompactStatus.Done(freedBytes = 0, finishedAt = now - 30 * minute).isRecent(now)).isTrue()
     }
 
     @Test
-    fun `livro novo com id reaproveitado nao herda a mensagem do antigo`() {
-        // A compactação terminou antes de o livro atual existir: era do livro apagado.
-        val done = CompactStatus.Done(freedBytes = 0, finishedAt = now - 10 * minute)
-        assertThat(done.isCurrent(bookCreatedAt = now - 5 * minute, now = now)).isFalse()
-    }
-
-    @Test
-    fun `resultado antigo deixa de aparecer`() {
-        val done = CompactStatus.Done(freedBytes = 500, finishedAt = now - 31 * minute)
-        assertThat(done.isCurrent(bookCreatedAt = now - 120 * minute, now = now)).isFalse()
+    fun `resultado antigo deixa de aparecer ao reabrir o livro`() {
+        assertThat(CompactStatus.Done(freedBytes = 0, finishedAt = now - 31 * minute).isRecent(now)).isFalse()
+        assertThat(CompactStatus.Done(freedBytes = 500, finishedAt = now - 3 * 24 * 60 * minute).isRecent(now)).isFalse()
     }
 
     @Test
     fun `resultado de versao anterior sem horario nao aparece`() {
-        val done = CompactStatus.Done(freedBytes = 0, finishedAt = 0)
-        assertThat(done.isCurrent(bookCreatedAt = now - 120 * minute, now = now)).isFalse()
+        assertThat(CompactStatus.Done(freedBytes = 0, finishedAt = 0).isRecent(now)).isFalse()
+    }
+
+    @Test
+    fun `horario no futuro (relogio ajustado) nao aparece`() {
+        assertThat(CompactStatus.Done(freedBytes = 0, finishedAt = now + 5 * minute).isRecent(now)).isFalse()
     }
 }

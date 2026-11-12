@@ -173,11 +173,8 @@ class BookDetailViewModel @Inject constructor(
 
     /** Progresso/resultado da compactação ("Liberar espaço"). */
     val compact: StateFlow<CompactStatus?> =
-        combine(books.observeCompact(bookId), books.observeBook(bookId)) { status, book ->
-            when (status) {
-                is CompactStatus.Done -> status.takeIf { book != null && it.isCurrent(book.createdAt, System.currentTimeMillis()) }
-                else -> status
-            }
+        books.observeCompact(bookId).map { status ->
+            if (status is CompactStatus.Done && !status.isRecent(System.currentTimeMillis())) null else status
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     fun compact(quality: PageQuality) = books.compact(bookId, quality)
 
