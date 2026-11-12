@@ -23,6 +23,9 @@ interface PageTurner {
 
     /** Vira para a próxima página. @return false se o gesto não pôde ser executado. */
     suspend fun nextPage(): Boolean
+
+    /** Volta uma página (recuperar uma página que o leitor pulou). @return false se não deu. */
+    suspend fun previousPage(): Boolean
 }
 
 class NoOpPageTurner : PageTurner {
@@ -31,4 +34,5 @@ class NoOpPageTurner : PageTurner {
     override val foregroundPackage: StateFlow<String?> = MutableStateFlow<String?>(null).asStateFlow()
     override val foregroundActivity: StateFlow<String?> = MutableStateFlow<String?>(null).asStateFlow()
     override suspend fun nextPage(): Boolean = false
+    override suspend fun previousPage(): Boolean = false
 }

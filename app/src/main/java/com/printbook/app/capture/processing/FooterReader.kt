@@ -26,14 +26,17 @@ class FooterReader {
      * (mesmo se a corrotina for cancelada antes: o reconhecimento continua lendo a imagem).
      * Não reaproveita o recognize() do OcrWorker por causa dessa reciclagem no fim da tarefa.
      */
-    suspend fun read(footer: Bitmap): PageIndicator? {
+    suspend fun read(footer: Bitmap): PageIndicator? = PageIndicator.parse(readText(footer))
+
+    /** Texto do rodapé numa linha só (mesma reciclagem de [read]). */
+    suspend fun readText(footer: Bitmap): String {
         val text = suspendCancellableCoroutine { cont ->
             recognizer.process(InputImage.fromBitmap(footer, 0))
                 .addOnSuccessListener { if (cont.isActive) cont.resume(it.text) }
                 .addOnFailureListener { if (cont.isActive) cont.resume("") }
                 .addOnCompleteListener { footer.recycle() }
         }
-        return PageIndicator.parse(text.replace('\n', ' '))
+        return text.replace('\n', ' ')
     }
 
     fun close() = recognizer.close()

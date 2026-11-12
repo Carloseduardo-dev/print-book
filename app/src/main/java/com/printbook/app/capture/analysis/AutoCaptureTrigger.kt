@@ -14,7 +14,8 @@ package com.printbook.app.capture.analysis
 class AutoCaptureTrigger(
     private val changeThreshold: Double = 3.0,
     private val stableThreshold: Double = 0.6,
-    private val stableSamples: Int = 3,
+    /** Amostras estáveis seguidas para disparar (o Turbo adaptativo ajusta durante a captura). */
+    var stableSamples: Int = 3,
 ) {
     enum class State { REFERENCE, ARMED, SETTLING }
 

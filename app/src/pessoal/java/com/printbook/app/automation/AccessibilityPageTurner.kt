@@ -23,4 +23,10 @@ class AccessibilityPageTurner @Inject constructor(
         val service = bridge.service.value ?: return false
         return service.swipe(fromX = 0.88f, fromY = 0.70f, toX = 0.22f, toY = 0.70f, durationMs = 180)
     }
+
+    /** O mesmo deslize no sentido contrário (da esquerda para a direita). */
+    override suspend fun previousPage(): Boolean {
+        val service = bridge.service.value ?: return false
+        return service.swipe(fromX = 0.22f, fromY = 0.70f, toX = 0.88f, toY = 0.70f, durationMs = 180)
+    }
 }

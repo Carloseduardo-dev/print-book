@@ -37,6 +37,11 @@ class AutoTurnController(
     private var noChanges = 0
     private var failures = 0
 
+    /** Página que o leitor tinha pulado e foi recuperada (conta no total da sessão). */
+    fun onRecovered() {
+        savedPages++
+    }
+
     fun onResult(result: Result): Decision {
         when (result) {
             Result.SAVED -> {
