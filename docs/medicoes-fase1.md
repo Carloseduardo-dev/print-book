@@ -144,6 +144,16 @@ Edição pessoal, "Compartilhar um app", qualidade Máxima, Automático Turbo + 
 
 Observação: forçar o fechamento do app (`am force-stop`) desliga o serviço de Acessibilidade; é preciso religá-lo.
 
+## Teste 10: 2026-11-12, depois da revisão de código do Turbo adaptativo (feito por Claude via ADB)
+
+Cobre o que o Teste 9 não cobriu. Livros de teste apagados; posições do Minha Biblioteca (p. 173) e do Kindle (posição 71) e os ajustes devolvidos.
+
+| Teste | Resultado |
+|---|---|
+| **Tela inteira** (bolha e aura no quadro), Minha Biblioteca, Turbo + livro todo, pulos provocados | "Faltou a 181" e "faltou a 221": as duas **recuperadas** (antes da correção, a aura na comparação de antes/depois pausava a captura em toda recuperação). 61 páginas, 61 de 61 na sequência pelo OCR (173–233). **1,68 s/página** na tela inteira (era ~2,1 s no Teste 8) |
+| Um dos deslizes extras não gerou pulo | O leitor ignorou o gesto (caiu durante a animação da virada): a contagem bate com a tela, sem página perdida |
+| Kindle **sem** livro todo | Depois de 5 leituras sem "N / total" ("Localização" não é página), a leitura do rodapé foi desligada sozinha |
+
 ## Pendentes
 - [x] Repetir o teste após a correção da bolha (Minha Biblioteca e Kindle)
 - [x] Captura de **um app só**: a bolha não aparece. Quadro de 1080×2340.
