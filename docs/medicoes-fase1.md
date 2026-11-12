@@ -131,6 +131,19 @@ Observação: em 3 de 32 tentativas, um toque `adb input tap` na bolha durante o
 
 Correções desta rodada: aura acesa só entre capturas (nunca pela gravação em paralelo); falhas de gravação pausam o (semi)automático; envio para a fila não cancelável e dedupe atualizado só depois do envio; referência do gatilho tirada da página nítida; nitidez precisa ficar no máximo por um tempo mínimo; bolha sem ação enquanto a fila esvazia; resultados antigos do rodapé descartados; OCR do rodapé libera a imagem só no fim; compactação sob o lock de excluir livro/páginas e sem reprocessar páginas Texto; sonda da bolha na dúvida esconde; "Parar" funciona com o cartão de conclusão; ritmo e alvo corrigidos ao retomar.
 
+## Teste 9: 2026-11-12, Turbo adaptativo e recuperação da página pulada (feito por Claude via ADB)
+
+Edição pessoal, "Compartilhar um app", qualidade Máxima, Automático Turbo + livro todo. Livros de teste apagados depois; posições de leitura do Minha Biblioteca (p. 173) e do Kindle (posição 71) devolvidas.
+
+| Teste | Resultado |
+|---|---|
+| Minha Biblioteca (Pré-cálculo), p. 173 em diante | **123 páginas em 158,7 s: 1,30 s/página** (mediana 1,29 s, p90 1,39 s, máx. 1,79 s). Indicador "N / 553" confirmado na 2ª página. 0 quadros no meio da virada, 0 páginas lentas, 0 puladas. Ritmo ajustado sozinho para ~1,12 s de intervalo (páginas mais lentas estabilizando em ~0,72 s) |
+| Conferência pelo OCR (posição × número impresso) | 123 de 123 na sequência (173–295), nenhuma diferença |
+| Pulo provocado (deslize extra via ADB depois das capturas 8 e 18) | Detectado "faltou a 304 (mostrou a 305)" e "faltou a 314": o app voltou, capturou, inseriu no lugar e avançou (~2 s cada). 55 páginas, 55 de 55 na sequência pelo OCR (296–350) |
+| Kindle (amostra), posição 71 em diante | **28 páginas, 1,06 s/página**; o ritmo ficou no mínimo (900 ms, estabilização ~0,4 s). "Localização" não entra na conferência: nenhum falso alarme. Fim da amostra detectado sozinho |
+
+Observação: forçar o fechamento do app (`am force-stop`) desliga o serviço de Acessibilidade; é preciso religá-lo.
+
 ## Pendentes
 - [x] Repetir o teste após a correção da bolha (Minha Biblioteca e Kindle)
 - [x] Captura de **um app só**: a bolha não aparece. Quadro de 1080×2340.
