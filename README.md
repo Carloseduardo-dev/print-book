@@ -126,7 +126,8 @@ O **print-book** reúne tudo num só lugar. Ele captura o que aparece na tela de
 
 **Organização**
 - Biblioteca em grade ou lista, favoritos, coleções, ordenação e busca por título **e** por conteúdo.
-- Editor de páginas: reordenar, girar, definir capa e excluir.
+- Editor de páginas: arrastar para reorganizar, "Mover para…" (início, fim ou antes da página N), girar, definir capa e excluir.
+- Adicionar páginas a qualquer print-book já salvo, capturando mais ou trazendo imagens da galeria, no fim ou depois de uma página escolhida.
 - Exportação para PDF (edição completa).
 
 ---
@@ -302,6 +303,8 @@ No Android Studio, escolha a variante em **View → Tool Windows → Build Varia
 - [x] OCR offline, busca no texto e exportação PDF
 - [x] Design system e identidade visual próprios
 - [x] Modo Turbo, captura do livro todo e compactação de livros
+- [x] Editor completo: adicionar páginas, imagens da galeria, reorganizar e inserir num ponto
+- [ ] Substituir uma captura, notas nas páginas e juntar print-books
 - [ ] Captura de página longa (rolagem) para sites, artigos e receitas
 - [ ] Perfil "Web/Documento" e modelos de coleção (Receitas, Estudos, Leitura)
 - [ ] Turbo mais rápido também na captura de tela inteira (bolha escondida durante a sequência)

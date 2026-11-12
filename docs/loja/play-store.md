@@ -53,6 +53,8 @@ ENCONTRE QUALQUER COISA
 • Busca no texto de todas as suas páginas, offline e sem precisar acertar os acentos.
 • Coleções, favoritos e marcadores.
 • Capa personalizada a partir da galeria ou de uma página.
+• Adicione páginas quando quiser: capture mais ou traga imagens da galeria, no fim ou no ponto que escolher.
+• Reorganize arrastando as páginas ou mova várias de uma vez para qualquer posição.
 
 LEITURA CONFORTÁVEL
 • Zoom por pinça e duplo toque.
