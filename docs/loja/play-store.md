@@ -83,7 +83,9 @@ Não deixe passar um conteúdo especial. Guarde no print-book.
 
 **E-mail de contato do desenvolvedor:** digitalbr316@gmail.com
 
-**Política de privacidade (obrigatória no Play Console):** `https://<domínio-na-vercel>/privacidade` (página em `site/privacidade.html`).
+**Site:** https://print-book-site.vercel.app
+
+**Política de privacidade (obrigatória no Play Console):** https://print-book-site.vercel.app/privacidade (página em `site/privacidade.html`).
 
 **Segurança dos dados (Data safety):**
 - O conteúdo do usuário (capturas, texto do OCR, coleções) **não é coletado**: fica só no aparelho, fora do backup e da transferência entre aparelhos.

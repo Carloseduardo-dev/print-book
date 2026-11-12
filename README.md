@@ -13,6 +13,7 @@ Um organizador pessoal para Android que transforma o que você vê na tela em co
 [![Android](https://img.shields.io/badge/Android-11%2B%20·%20API%2030-3DDC84?logo=android&logoColor=white)](#começando)
 [![Tests](https://img.shields.io/badge/testes%20unitários-65%20passando-4E7A4B)](#qualidade)
 [![Offline](https://img.shields.io/badge/funciona-100%25%20offline-B0602C)](#privacidade-e-uso-responsável)
+[![Site](https://img.shields.io/badge/site-print--book--site.vercel.app-1C1A16)](https://print-book-site.vercel.app)
 
 <img src="docs/screenshots/banner.png" alt="Telas do print-book: início, biblioteca, leitor, busca no texto e captura com a aura" />
 
@@ -313,7 +314,7 @@ No Android Studio, escolha a variante em **View → Tool Windows → Build Varia
 
 ## Privacidade e uso responsável
 
-Política de privacidade completa: [`site/privacidade.html`](site/privacidade.html) (publicada junto com o site).
+Política de privacidade completa: [print-book-site.vercel.app/privacidade](https://print-book-site.vercel.app/privacidade).
 
 - O print-book captura **apenas o que já está visível na tela**, a partir de conteúdo ao qual o usuário tem acesso legítimo, para leitura pessoal offline.
 - **Nunca contorna proteções:** se um aplicativo bloqueia capturas de tela (`FLAG_SECURE`), o print-book detecta a tela preta, avisa e interrompe.
