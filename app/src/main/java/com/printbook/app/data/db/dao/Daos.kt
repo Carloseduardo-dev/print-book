@@ -106,8 +106,11 @@ interface PageDao {
     @Query("SELECT * FROM pages WHERE bookId = :bookId ORDER BY position")
     fun observeForBook(bookId: Long): Flow<List<PageEntity>>
 
-    /** Últimas páginas (mais recentes primeiro): preview da bolha sem carregar o livro inteiro. */
-    @Query("SELECT * FROM pages WHERE bookId = :bookId ORDER BY position DESC LIMIT :limit")
+    /**
+     * Últimas páginas CAPTURADAS (mais recentes primeiro): preview da bolha sem carregar o livro
+     * inteiro. Por data de captura, não por posição: páginas inseridas no meio também aparecem.
+     */
+    @Query("SELECT * FROM pages WHERE bookId = :bookId ORDER BY capturedAt DESC, id DESC LIMIT :limit")
     fun observeRecent(bookId: Long, limit: Int): Flow<List<PageEntity>>
 
     @Query("SELECT COUNT(*) FROM pages WHERE bookId = :bookId")

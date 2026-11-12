@@ -76,6 +76,26 @@ class PageFileStore @Inject constructor(@ApplicationContext private val appConte
         return out
     }
 
+    /** Página criada a partir de uma imagem (galeria): arquivo gravado e dimensões. */
+    data class ImportedPage(val written: Written, val width: Int, val height: Int)
+
+    /**
+     * Grava uma imagem da galeria (Photo Picker) como página: decodifica já reduzida a
+     * [PAGE_IMPORT_MAX_WIDTH] e salva na qualidade escolhida. Lança se a imagem não abrir.
+     */
+    fun writePageFromUri(bookId: Long, uri: Uri, quality: PageQuality): ImportedPage {
+        val bitmap = ImageDecoder.decodeBitmap(ImageDecoder.createSource(appContext.contentResolver, uri)) { decoder, info, _ ->
+            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+            val w = info.size.width
+            if (w > PAGE_IMPORT_MAX_WIDTH) decoder.setTargetSize(PAGE_IMPORT_MAX_WIDTH, info.size.height * PAGE_IMPORT_MAX_WIDTH / w)
+        }
+        try {
+            return ImportedPage(write(bookId, bitmap, quality), bitmap.width, bitmap.height)
+        } finally {
+            bitmap.recycle()
+        }
+    }
+
     /** Página gravada no modo Texto (tons de cinza, sem perda)? */
     fun isText(fileName: String): Boolean = fileName.startsWith(TEXT_PREFIX)
 
@@ -142,5 +162,7 @@ class PageFileStore @Inject constructor(@ApplicationContext private val appConte
         const val LOSSY_QUALITY = 90
         const val COVER_MAX_WIDTH = 1080
         const val TEXT_PREFIX = "g-"
+        /** Largura máxima de uma imagem importada como página (fotos de câmera são bem maiores). */
+        const val PAGE_IMPORT_MAX_WIDTH = 1600
     }
 }

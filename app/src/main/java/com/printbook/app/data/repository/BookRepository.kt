@@ -23,6 +23,7 @@ import com.printbook.app.data.db.entity.SourceApp
 import com.printbook.app.data.files.PageFileStore
 import com.printbook.app.data.files.WebpFormat
 import com.printbook.app.data.prefs.PageQuality
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Mutex
@@ -180,18 +181,92 @@ class BookRepository @Inject constructor(
     // ---- Páginas ----
     data class SavedPage(val pageId: Long, val bytes: Long, val encodeMs: Long, val position: Int)
 
-    suspend fun addPage(bookId: Long, bitmap: Bitmap, quality: PageQuality = PageQuality.MAXIMA): SavedPage = withContext(Dispatchers.IO) {
+    /**
+     * Grava uma página. Sem [insertAfterPosition], entra no fim; com ele (0-based; -1 = início),
+     * entra logo depois daquela posição e as seguintes são renumeradas.
+     */
+    suspend fun addPage(
+        bookId: Long,
+        bitmap: Bitmap,
+        quality: PageQuality = PageQuality.MAXIMA,
+        insertAfterPosition: Int? = null,
+    ): SavedPage = withContext(Dispatchers.IO) {
         val written = files.write(bookId, bitmap, quality)
         insertLock.withLock {
-            val position = pageDao.maxPosition(bookId) + 1
-            val id = pageDao.insert(
-                PageEntity(
-                    bookId = bookId, position = position, fileName = written.fileName,
-                    width = bitmap.width, height = bitmap.height, byteSize = written.bytes,
-                ),
-            )
+            val id = insertPageLocked(bookId, written, bitmap.width, bitmap.height, insertAfterPosition)
+            val position = pageDao.getByIds(listOf(id)).firstOrNull()?.position ?: 0
             bookDao.refreshStats(bookId)
             SavedPage(id, written.bytes, written.encodeMs, position)
+        }
+    }
+
+    /** Insere a página (chamar dentro de [insertLock]). Devolve o id. */
+    private suspend fun insertPageLocked(
+        bookId: Long,
+        written: PageFileStore.Written,
+        width: Int,
+        height: Int,
+        insertAfterPosition: Int?,
+    ): Long {
+        val id = pageDao.insert(
+            PageEntity(
+                bookId = bookId, position = pageDao.maxPosition(bookId) + 1, fileName = written.fileName,
+                width = width, height = height, byteSize = written.bytes,
+            ),
+        )
+        if (insertAfterPosition != null) {
+            val ids = pageDao.getForBook(bookId).map { it.id }
+            editor.reorder(bookId, PageOrder.insertAfter(ids, listOf(id), insertAfterPosition))
+        }
+        return id
+    }
+
+    /** Resultado de importar imagens da galeria. */
+    data class ImportResult(val added: Int, val failed: Int)
+
+    /**
+     * Importa imagens da galeria como páginas, em sequência, no fim ou depois de
+     * [insertAfterPosition]. Imagens que não abrem são puladas. Enfileira o OCR das novas.
+     */
+    suspend fun importImages(
+        bookId: Long,
+        uris: List<Uri>,
+        insertAfterPosition: Int?,
+        quality: PageQuality,
+        onProgress: (done: Int, total: Int) -> Unit = { _, _ -> },
+    ): ImportResult = withContext(Dispatchers.IO) {
+        var added = 0
+        var failed = 0
+        uris.forEachIndexed { i, uri ->
+            onProgress(i, uris.size)
+            try {
+                val page = files.writePageFromUri(bookId, uri, quality)
+                insertLock.withLock {
+                    if (bookDao.get(bookId) == null) {
+                        files.delete(bookId, page.written.fileName)
+                        return@withContext ImportResult(added, failed + uris.size - i)
+                    }
+                    val after = insertAfterPosition?.let { it + added }
+                    insertPageLocked(bookId, page.written, page.width, page.height, after)
+                    bookDao.refreshStats(bookId)
+                }
+                added++
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                failed++
+            }
+        }
+        onProgress(uris.size, uris.size)
+        if (added > 0) work.enqueueOcr(bookId)
+        ImportResult(added, failed)
+    }
+
+    /** Move as páginas selecionadas para que a primeira fique na posição [targetIndex] (0-based). */
+    suspend fun movePages(bookId: Long, selected: Set<Long>, targetIndex: Int) = withContext(Dispatchers.IO) {
+        insertLock.withLock {
+            val ids = pageDao.getForBook(bookId).map { it.id }
+            editor.reorder(bookId, PageOrder.moveTo(ids, selected, targetIndex))
         }
     }
 
@@ -212,7 +287,18 @@ class BookRepository @Inject constructor(
         }
     }
 
-    suspend fun reorderPages(bookId: Long, orderedIds: List<Long>) = editor.reorder(bookId, orderedIds)
+    /**
+     * Grava a nova ordem. Páginas que chegaram depois de a lista ser montada (captura em andamento)
+     * vão para o fim, e ids que já não existem são ignorados: as posições nunca se repetem.
+     */
+    suspend fun reorderPages(bookId: Long, orderedIds: List<Long>) = withContext(Dispatchers.IO) {
+        insertLock.withLock {
+            val current = pageDao.getForBook(bookId).map { it.id }
+            val known = current.toSet()
+            val ordered = orderedIds.filter { it in known }.distinct()
+            editor.reorder(bookId, ordered + current.filterNot { it in ordered.toSet() })
+        }
+    }
 
     suspend fun rotatePage(pageId: Long, currentRotation: Int) =
         pageDao.setRotation(pageId, (currentRotation + 90) % 360)

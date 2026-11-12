@@ -73,6 +73,11 @@ import com.printbook.app.ui.components.BookCover
 import com.printbook.app.ui.components.formatBytes
 import com.printbook.app.ui.navigation.BookDetailRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import androidx.compose.material.icons.outlined.AddPhotoAlternate
+import kotlinx.coroutines.flow.first
+import com.printbook.app.data.prefs.SettingsRepository
+import com.printbook.app.capture.service.ContinueRequest
+import com.printbook.app.capture.service.CaptureStateHolder
 import com.printbook.app.data.prefs.PageQuality
 import com.printbook.app.work.CompactStatus
 import com.printbook.app.export.BookExporter
@@ -99,6 +104,8 @@ class BookDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val books: BookRepository,
     private val exporter: BookExporter,
+    private val capture: CaptureStateHolder,
+    private val settingsRepo: SettingsRepository,
 ) : ViewModel() {
     val canExport = exporter.available
     private val _export = MutableStateFlow<String?>(null)
@@ -144,6 +151,30 @@ class BookDetailViewModel @Inject constructor(
 
     fun removeCover() = viewModelScope.launch { books.removeCover(bookId) }
 
+    // ---- Adicionar páginas ----
+    private val _importStatus = MutableStateFlow<String?>(null)
+    /** Andamento/resultado de "Imagens da galeria" (null = nada em andamento). */
+    val importStatus: StateFlow<String?> = _importStatus
+
+    /** Prepara a aba Capturar para continuar este print-book (no fim). */
+    fun captureMore() {
+        val book = state.value.book ?: return
+        capture.requestContinue(ContinueRequest(book.id, book.title, insertAfterPosition = null))
+    }
+
+    /** Imagens da galeria entram no fim do print-book. */
+    fun importImages(uris: List<Uri>) = viewModelScope.launch {
+        if (uris.isEmpty()) return@launch
+        val quality = settingsRepo.settings.first().pageQuality
+        _importStatus.value = "Adicionando ${uris.size} ${if (uris.size == 1) "imagem" else "imagens"}…"
+        val r = books.importImages(bookId, uris, insertAfterPosition = null, quality = quality) { done, total ->
+            _importStatus.value = "Adicionando imagens: $done de $total"
+        }
+        _importStatus.value = importMessage(r)
+    }
+
+    fun clearImportStatus() { _importStatus.value = null }
+
     /** Progresso/resultado da compactação ("Liberar espaço"). */
     val compact: StateFlow<CompactStatus?> =
         books.observeCompact(bookId).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
@@ -163,9 +194,15 @@ fun BookDetailScreen(
     onBack: () -> Unit,
     onRead: (Long) -> Unit,
     onEdit: (Long) -> Unit,
+    onOpenCapture: () -> Unit,
     viewModel: BookDetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    var addMenu by remember { mutableStateOf(false) }
+    val importStatus by viewModel.importStatus.collectAsStateWithLifecycle()
+    val galleryPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris ->
+        viewModel.importImages(uris)
+    }
     var renameDialog by remember { mutableStateOf(false) }
     var deleteDialog by remember { mutableStateOf(false) }
     var collectionsDialog by remember { mutableStateOf(false) }
@@ -300,6 +337,28 @@ fun BookDetailScreen(
             OutlinedButton(onClick = { onEdit(book.id) }, enabled = book.pageCount > 0, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Outlined.GridView, null)
                 Text("  Editar páginas")
+            }
+            Box {
+                OutlinedButton(onClick = { addMenu = true }, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Outlined.AddPhotoAlternate, null)
+                    Text("  Adicionar páginas")
+                }
+                DropdownMenu(expanded = addMenu, onDismissRequest = { addMenu = false }) {
+                    DropdownMenuItem(
+                        text = { Text("Capturar mais páginas") },
+                        onClick = { addMenu = false; viewModel.captureMore(); onOpenCapture() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Imagens da galeria") },
+                        onClick = {
+                            addMenu = false
+                            galleryPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                        },
+                    )
+                }
+            }
+            importStatus?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (book.pageCount > 0 && book.status != BookStatus.CAPTURING) {
                 when (val c = compact) {
@@ -449,4 +508,11 @@ fun BookDetailScreen(
             confirmButton = { TextButton(onClick = { collectionsDialog = false }) { Text("Fechar") } },
         )
     }
+}
+
+/** Texto do resultado de "Imagens da galeria" (usado no Detalhe e no Editor). */
+internal fun importMessage(r: BookRepository.ImportResult): String = buildString {
+    append(if (r.added == 1) "1 imagem adicionada" else "${r.added} imagens adicionadas")
+    if (r.failed > 0) append(if (r.failed == 1) " · 1 não pôde ser aberta" else " · ${r.failed} não puderam ser abertas")
+    append(".")
 }

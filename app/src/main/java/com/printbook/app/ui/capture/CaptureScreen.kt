@@ -46,6 +46,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -87,6 +89,7 @@ fun CaptureScreen(
     val capture by viewModel.captureState.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val capturingBooks by viewModel.capturingBooks.collectAsStateWithLifecycle()
+    val continueRequest by viewModel.continueRequest.collectAsStateWithLifecycle()
     val automationAvailable by viewModel.automationAvailable.collectAsStateWithLifecycle()
 
     var notificationsGranted by remember { mutableStateOf(hasNotificationPermission(context)) }
@@ -94,7 +97,8 @@ fun CaptureScreen(
     var title by rememberSaveable { mutableStateOf("") }
     var continueBookIdRaw by rememberSaveable { mutableStateOf<Long?>(null) }
     // Ignora a seleção se o livro saiu da lista "em captura" (ex.: captura concluída).
-    val continueBookId = continueBookIdRaw?.takeIf { id -> capturingBooks.any { it.id == id } }
+    // Um pedido do Detalhe/Editor ("Adicionar páginas") tem prioridade e vale para qualquer print-book.
+    val continueBookId = continueRequest?.bookId ?: continueBookIdRaw?.takeIf { id -> capturingBooks.any { it.id == id } }
     var showA11yDisclosure by remember { mutableStateOf(false) }
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -188,7 +192,27 @@ fun CaptureScreen(
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text("print-book", style = MaterialTheme.typography.titleMedium)
-                            if (capturingBooks.isNotEmpty()) {
+                            continueRequest?.let { req ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(14.dp))
+                                        .background(MaterialTheme.colorScheme.primaryContainer)
+                                        .padding(start = 14.dp, top = 10.dp, bottom = 10.dp, end = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text("Adicionando páginas a", style = MaterialTheme.typography.labelMedium)
+                                        Text(req.title, style = MaterialTheme.typography.titleSmall, maxLines = 2)
+                                        Text(
+                                            req.insertAfterPosition?.let { if (it < 0) "No início" else "Depois da página ${it + 1}" } ?: "No fim",
+                                            style = MaterialTheme.typography.bodySmall,
+                                        )
+                                    }
+                                    IconButton(onClick = viewModel::cancelContinue) { Icon(Icons.Filled.Close, "Cancelar") }
+                                }
+                            }
+                            if (continueRequest == null && capturingBooks.isNotEmpty()) {
                                 Text("Continuar um print-book em captura:", style = MaterialTheme.typography.bodyMedium)
                                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     capturingBooks.forEach { book ->
@@ -327,7 +351,7 @@ fun CaptureScreen(
                         onClick = {
                             keyboard?.hide()
                             focusManager.clearFocus()
-                            viewModel.prepare(title, continueBookId, requestConsent)
+                            viewModel.prepare(title, continueBookId, requestConsent, continueRequest?.insertAfterPosition)
                             title = ""
                             continueBookIdRaw = null
                         },

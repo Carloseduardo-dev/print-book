@@ -117,6 +117,7 @@ fun PrintBookNavHost(openBookId: Long? = null, onBookOpened: () -> Unit = {}) {
                     onBack = { navController.popBackStack() },
                     onRead = { navController.navigate(ReaderRoute(it)) },
                     onEdit = { navController.navigate(EditorRoute(it)) },
+                    onOpenCapture = { navController.navigateToTab(CaptureRoute) },
                 )
             }
             composable<ReaderRoute> { ReaderScreen(onBack = { navController.popBackStack() }) }
@@ -124,6 +125,7 @@ fun PrintBookNavHost(openBookId: Long? = null, onBookOpened: () -> Unit = {}) {
                 EditorScreen(
                     onBack = { navController.popBackStack() },
                     onOpenPage = { bookId, index -> navController.navigate(ReaderRoute(bookId, index)) },
+                    onOpenCapture = { navController.navigateToTab(CaptureRoute) },
                 )
             }
         }

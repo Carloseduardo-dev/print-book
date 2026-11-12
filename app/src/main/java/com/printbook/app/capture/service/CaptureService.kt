@@ -83,6 +83,9 @@ class CaptureService : LifecycleService() {
     /** Exclusões em andamento (ignora toques repetidos). */
     private val deletingPages = mutableSetOf<Long>()
 
+    /** Páginas gravadas nesta sessão (para inserir em sequência num ponto X). */
+    private var insertedThisSession = 0
+
     /** Fila de gravação (encode + banco) e a corrotina que a consome. */
     private var writeQueue: Channel<PageJob>? = null
     private var writerJob: Job? = null
@@ -168,6 +171,7 @@ class CaptureService : LifecycleService() {
         progressMessage = null
         jumpMessage = null
         writeFailures = 0
+        insertedThisSession = 0
         writtenSignatures.clear()
         pace = PaceMeter()
         trigger = AutoCaptureTrigger(stableSamples = STABLE_SAMPLES)
@@ -229,7 +233,10 @@ class CaptureService : LifecycleService() {
         writerJob = lifecycleScope.launch {
             for (job in queue) {
                 try {
-                    val saved = books.addPage(cfg.bookId, job.bitmap, cfg.quality)
+                    // Inserindo num ponto X: cada captura entra depois da anterior desta sessão.
+                    val after = cfg.insertAfterPosition?.let { it + insertedThisSession }
+                    val saved = books.addPage(cfg.bookId, job.bitmap, cfg.quality, insertAfterPosition = after)
+                    insertedThisSession++
                     writeFailures = 0
                     lastSavedPageId = saved.pageId
                     sessionPageIds += saved.pageId

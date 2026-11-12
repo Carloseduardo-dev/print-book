@@ -91,6 +91,7 @@ dependencies {
 
     implementation(libs.coil.compose)
     implementation(libs.telephoto.zoomable.image.coil3)
+    implementation(libs.reorderable)
     implementation(libs.mlkit.text.recognition)
 
     testImplementation(libs.junit)

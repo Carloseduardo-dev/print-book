@@ -26,7 +26,15 @@ data class CaptureConfig(
     val turbo: Boolean = false,
     /** Automático: capturar até o fim, usando o total de páginas lido do leitor. */
     val wholeBook: Boolean = false,
+    /**
+     * Adicionando páginas a um print-book existente num ponto X: as capturas entram logo depois
+     * desta posição (0-based; -1 = início). null = no fim.
+     */
+    val insertAfterPosition: Int? = null,
 )
+
+/** Pedido vindo do Detalhe/Editor: abrir a aba Capturar já adicionando páginas a um print-book. */
+data class ContinueRequest(val bookId: Long, val title: String, val insertAfterPosition: Int? = null)
 
 data class CaptureUiState(
     val running: Boolean = false,
@@ -74,6 +82,14 @@ class CaptureStateHolder @Inject constructor() {
 
     /** O print-book está na tela (MainActivity em primeiro plano)? Evita cartões duplicados. */
     @Volatile var appVisible: Boolean = false
+
+    private val _continueRequest = MutableStateFlow<ContinueRequest?>(null)
+    /** Pedido pendente de "adicionar páginas" (consumido pela aba Capturar). */
+    val continueRequest: StateFlow<ContinueRequest?> = _continueRequest.asStateFlow()
+
+    fun requestContinue(request: ContinueRequest?) {
+        _continueRequest.value = request
+    }
 
     /** Lida pelo CaptureService ao iniciar. */
     @Volatile var pendingConfig: CaptureConfig? = null

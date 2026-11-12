@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.printbook.app.capture.PageTurner
 import com.printbook.app.capture.service.CaptureConfig
+import com.printbook.app.capture.service.ContinueRequest
 import com.printbook.app.capture.service.CaptureStateHolder
 import com.printbook.app.capture.service.CaptureUiState
 import com.printbook.app.data.db.entity.BookEntity
@@ -36,6 +37,10 @@ class CaptureViewModel @Inject constructor(
 
     val captureState: StateFlow<CaptureUiState> = stateHolder.state
 
+    /** Pedido de "adicionar páginas" vindo do Detalhe/Editor. */
+    val continueRequest: StateFlow<ContinueRequest?> = stateHolder.continueRequest
+    fun cancelContinue() = stateHolder.requestContinue(null)
+
     val settings: StateFlow<Settings> =
         settingsRepo.settings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Settings())
 
@@ -58,7 +63,7 @@ class CaptureViewModel @Inject constructor(
     /** Livro criado agora para esta captura (apagado se o usuário cancelar o consentimento). */
     private var newlyCreatedBookId: Long? = null
 
-    fun prepare(newTitle: String?, existingBookId: Long?, onReady: () -> Unit) {
+    fun prepare(newTitle: String?, existingBookId: Long?, onReady: () -> Unit, insertAfterPosition: Int? = null) {
         viewModelScope.launch {
             val s = settings.value
             val bookId = existingBookId ?: books.createBook(newTitle, s.lastSourceApp)
@@ -76,7 +81,9 @@ class CaptureViewModel @Inject constructor(
                 maxPages = s.maxPagesPerSession.takeIf { it > 0 },
                 turbo = s.turbo && s.captureMode != CaptureMode.MANUAL,
                 wholeBook = s.wholeBook && s.captureMode == CaptureMode.AUTO,
+                insertAfterPosition = insertAfterPosition,
             )
+            stateHolder.requestContinue(null)
             stateHolder.update { it.copy(warning = null, interrupted = false) }
             onReady()
         }
