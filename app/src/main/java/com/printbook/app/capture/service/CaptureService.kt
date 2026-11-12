@@ -113,7 +113,7 @@ class CaptureService : LifecycleService() {
     private var summaryJob: Job? = null
 
     /** Resultado de uma tentativa de captura. */
-    private enum class Outcome { SAVED, DUPLICATE, BLACK, FAILED }
+    private enum class Outcome { SAVED, DUPLICATE, BLACK, FAILED, MID_TURN }
 
     /** Página já recortada, aguardando o encode/gravação. */
     private class PageJob(val bitmap: Bitmap, val crop: PixelRect, val signature: FrameSignature)
@@ -408,7 +408,11 @@ class CaptureService : LifecycleService() {
                 // Referência = a página nítida que vai ser capturada (amostrada ANTES da captura,
                 // para uma virada feita logo depois não virar a referência).
                 val capturedPage = sampleNow()
-                if (captureOnce() == Outcome.BLACK) return AutoEnd(AutoTurnController.Reason.BLOCKED.message, false)
+                when (captureOnce()) {
+                    Outcome.BLACK -> return AutoEnd(AutoTurnController.Reason.BLOCKED.message, false)
+                    Outcome.MID_TURN -> { trigger.rejectSettled(); continue } // virada travada: espera terminar
+                    else -> Unit
+                }
                 armWith(capturedPage)
                 saveFailureEnd()?.let { return it }
             }
@@ -481,7 +485,8 @@ class CaptureService : LifecycleService() {
                 continue
             }
 
-            val settled = withTimeoutOrNull(TURN_SETTLE_TIMEOUT_MS) {
+            val turnedAt = SystemClock.elapsedRealtime()
+            suspend fun waitSettle(timeoutMs: Long): Boolean = withTimeoutOrNull(timeoutMs) {
                 while (true) {
                     delay(sampleInterval)
                     val sig = sampleNow() ?: continue
@@ -489,6 +494,13 @@ class CaptureService : LifecycleService() {
                 }
                 true
             } ?: false
+            var settled = waitSettle(TURN_SETTLE_TIMEOUT_MS)
+            // A tela mudou mas ainda não parou (página carregando no leitor): espera mais, em vez de
+            // tratar como "não mudou" e virar de novo, o que pularia essa página.
+            if (!settled && trigger.state == AutoCaptureTrigger.State.SETTLING) {
+                settled = waitSettle(SLOW_PAGE_EXTRA_MS)
+                Log.i(TAG, "Página lenta: estabilizou=${settled} depois de ${SystemClock.elapsedRealtime() - turnedAt} ms")
+            }
 
             // O app saiu da tela de leitura (ex.: fim da amostra abre a loja): fim, sem capturar.
             val activityNow = pageTurner.foregroundActivity.value
@@ -504,9 +516,22 @@ class CaptureService : LifecycleService() {
                 val capturedPage = sampleNow() // referência = a página nítida capturada
                 // Livro todo: relê o rodapé de tempos em tempos (porcentagem, ou conferir a página).
                 val reread = cfg.wholeBook && indicator != null && (controller.savedPages + 1) % REREAD_EVERY == 0
-                captureOnce(readFooter = reread).toTurnResult().also {
+                var outcome = captureOnce(readFooter = reread)
+                var page = capturedPage
+                var retries = 0
+                // A virada travou no meio (o leitor ainda carregando a página): espera terminar e captura de novo.
+                while (outcome == Outcome.MID_TURN && retries < MAX_MID_TURN_RETRIES) {
+                    retries++
+                    trigger.rejectSettled()
+                    if (!waitSettle(SLOW_PAGE_EXTRA_MS)) break
+                    awaitSharp()
+                    page = sampleNow()
+                    outcome = captureOnce(readFooter = reread)
+                }
+                if (retries > 0) Log.i(TAG, "Virada travada no meio: $retries nova(s) tentativa(s), resultado $outcome")
+                outcome.toTurnResult().also {
                     if (reread && it == AutoTurnController.Result.SAVED) rereadIndicatorAsync(controller.savedPages + 1, myRun)
-                    armWith(capturedPage)
+                    armWith(page)
                 }
             } else {
                 // A tela não estabilizou: antes da próxima virada, espera uma referência estável.
@@ -528,7 +553,7 @@ class CaptureService : LifecycleService() {
         Outcome.SAVED -> AutoTurnController.Result.SAVED
         Outcome.DUPLICATE -> AutoTurnController.Result.DUPLICATE
         Outcome.BLACK -> AutoTurnController.Result.BLACK
-        Outcome.FAILED -> AutoTurnController.Result.FAILED
+        Outcome.FAILED, Outcome.MID_TURN -> AutoTurnController.Result.FAILED
     }
 
     // ---- Livro todo: total de páginas, progresso e tempo restante ----
@@ -548,6 +573,7 @@ class CaptureService : LifecycleService() {
                 percentStart = read.percent to SystemClock.elapsedRealtime()
                 stateHolder.update { it.copy(progressLabel = "${read.percent}%") }
             }
+            read?.total != null -> stateHolder.update { it.copy(progressLabel = "início") } // capa/páginas iniciais
             else -> stateHolder.update {
                 it.copy(warning = "Não achei o total de páginas na tela. Vou capturar até o fim do livro.")
             }
@@ -596,6 +622,13 @@ class CaptureService : LifecycleService() {
             if (run != runId) return@launch // resultado de uma execução anterior (pausou e retomou)
             val current = indicator ?: return@launch
             if (read.percent != null) indicator = current.copy(percent = read.percent)
+            // Começou na capa/páginas iniciais (só o total era conhecido): quando aparece o número da
+            // página, ancora o progresso nela. O fim continua sendo detectado pela última página.
+            if (current.current == null && read.current != null && read.total == current.total && !read.isLocation) {
+                indicator = current.copy(current = read.current - (savedIncludingThis - 1))
+                Log.i(TAG, "Progresso ancorado: página ${read.current} na captura $savedIncludingThis")
+                return@launch
+            }
             val start = current.current ?: return@launch
             val now = read.current ?: return@launch
             if (read.total != current.total || read.isLocation) return@launch
@@ -662,6 +695,12 @@ class CaptureService : LifecycleService() {
                 }
                 is ProcessedFrame.Page -> {
                     if (processed.bitmap !== frame) frame.recycle()
+                    if (processed.midTurn) {
+                        // Duas folhas lado a lado: a virada travou no meio. Não salva.
+                        processed.bitmap.recycle()
+                        Log.i(TAG, "Quadro no meio da virada descartado")
+                        return@withLock Outcome.MID_TURN
+                    }
                     val previous = lastSavedSignature
                     val isDuplicate = cfg.skipDuplicates && previous != null &&
                         previous.width == processed.signature.width &&
@@ -838,6 +877,10 @@ class CaptureService : LifecycleService() {
         private const val REFERENCE_TIMEOUT_MS = 2_000L
         /** Tempo máximo para a página nova aparecer e estabilizar depois do gesto. */
         private const val TURN_SETTLE_TIMEOUT_MS = 6_000L
+        /** Espera extra quando a página mudou mas segue carregando (leitor buscando a página). */
+        private const val SLOW_PAGE_EXTRA_MS = 15_000L
+        /** Novas tentativas quando a captura sai no meio da virada (leitor carregando a página). */
+        private const val MAX_MID_TURN_RETRIES = 4
         /** Teto da espera pela nitidez (páginas sem texto não "ficam nítidas"). */
         private const val SHARP_TIMEOUT_MS = 1_200L
         /** Diferença média (0..255) abaixo da qual duas páginas são consideradas iguais. */

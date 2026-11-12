@@ -3,6 +3,7 @@ package com.printbook.app.capture.processing
 import android.graphics.Bitmap
 import com.printbook.app.capture.analysis.BlackFrameDetector
 import com.printbook.app.capture.analysis.FrameSignature
+import com.printbook.app.capture.analysis.SeamDetector
 import com.printbook.app.capture.profile.CaptureProfile
 import com.printbook.app.capture.profile.CropMath
 import com.printbook.app.capture.profile.PixelRect
@@ -10,7 +11,13 @@ import com.printbook.app.capture.profile.PixelRect
 /** Resultado do processamento de um quadro capturado. */
 sealed interface ProcessedFrame {
     data object Black : ProcessedFrame
-    data class Page(val bitmap: Bitmap, val signature: FrameSignature, val crop: PixelRect) : ProcessedFrame
+    data class Page(
+        val bitmap: Bitmap,
+        val signature: FrameSignature,
+        val crop: PixelRect,
+        /** Quadro da virada travada no meio (duas folhas lado a lado): não deve ser salvo. */
+        val midTurn: Boolean = false,
+    ) : ProcessedFrame
 }
 
 /**
@@ -42,7 +49,10 @@ object PageProcessor {
         val signature = FrameSignature.sample(rect.width, rect.height) { x, y ->
             pixels[(rect.top + y) * w + rect.left + x]
         }
-        return ProcessedFrame.Page(page, signature, rect)
+        val midTurn = profile.trimMargins && SeamDetector.hasSheetSeam(rect.width, rect.height) { x, y ->
+            BlackFrameDetector.luma(pixels[(rect.top + y) * w + rect.left + x])
+        }
+        return ProcessedFrame.Page(page, signature, rect, midTurn)
     }
 
     private fun ByteArray.toArgb(): IntArray = IntArray(size) {
