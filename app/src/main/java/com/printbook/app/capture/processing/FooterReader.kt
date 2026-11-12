@@ -21,16 +21,17 @@ class FooterReader {
         return Bitmap.createBitmap(frame, 0, top, frame.width, frame.height - top)
     }
 
-    /** @return o indicador lido, ou null se não houver. Recicla [footer]. */
+    /**
+     * @return o indicador lido, ou null se não houver. Recicla [footer] quando o ML Kit termina
+     * (mesmo se a corrotina for cancelada antes: o reconhecimento continua lendo a imagem).
+     * Não reaproveita o recognize() do OcrWorker por causa dessa reciclagem no fim da tarefa.
+     */
     suspend fun read(footer: Bitmap): PageIndicator? {
-        val text = try {
-            suspendCancellableCoroutine { cont ->
-                recognizer.process(InputImage.fromBitmap(footer, 0))
-                    .addOnSuccessListener { if (cont.isActive) cont.resume(it.text) }
-                    .addOnFailureListener { if (cont.isActive) cont.resume("") }
-            }
-        } finally {
-            footer.recycle()
+        val text = suspendCancellableCoroutine { cont ->
+            recognizer.process(InputImage.fromBitmap(footer, 0))
+                .addOnSuccessListener { if (cont.isActive) cont.resume(it.text) }
+                .addOnFailureListener { if (cont.isActive) cont.resume("") }
+                .addOnCompleteListener { footer.recycle() }
         }
         return PageIndicator.parse(text.replace('\n', ' '))
     }

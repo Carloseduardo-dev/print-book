@@ -87,8 +87,6 @@ import com.printbook.app.data.prefs.Settings
 import com.printbook.app.data.prefs.SettingsRepository
 import com.printbook.app.data.repository.BookRepository
 import com.printbook.app.ui.components.rememberPageRequest
-import com.printbook.app.ui.components.RotateTransformation
-import coil3.request.transformations
 import com.printbook.app.ui.navigation.ReaderRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.NonCancellable

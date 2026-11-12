@@ -6,26 +6,24 @@ import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
-import com.printbook.app.data.db.dao.BookDao
-import com.printbook.app.data.db.dao.PageDao
-import com.printbook.app.data.files.PageFileStore
-import com.printbook.app.data.files.WebpFormat
 import com.printbook.app.data.prefs.PageQuality
+import com.printbook.app.data.repository.BookRepository
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 /**
  * Compacta um livro já salvo: recodifica as páginas em Econômica (só as que estão sem perda) ou
- * em Texto (todas, para tirar a cor). Ids, ordem, capa, marcadores e texto do OCR não mudam.
- * Se a versão nova não ficar menor, mantém a página original.
+ * em Texto (as que ainda não estão). Ids, ordem, capa, marcadores e texto do OCR não mudam.
+ * Cada página é trocada sob o lock do repositório (não corre junto com excluir livro/páginas).
  */
 @HiltWorker
 class CompactBookWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted params: WorkerParameters,
-    private val pageDao: PageDao,
-    private val bookDao: BookDao,
-    private val files: PageFileStore,
+    private val books: BookRepository,
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
@@ -33,29 +31,25 @@ class CompactBookWorker @AssistedInject constructor(
         val quality = inputData.getString(KEY_QUALITY)?.let { runCatching { PageQuality.valueOf(it) }.getOrNull() }
         if (bookId < 0 || quality == null || quality == PageQuality.MAXIMA) return Result.failure()
 
-        val pages = pageDao.getForBook(bookId)
+        val ids = books.pageIds(bookId)
         var freed = 0L
-        pages.forEachIndexed { index, page ->
-            setProgress(workDataOf(KEY_DONE to index, KEY_TOTAL to pages.size))
-            val needsRecode = quality == PageQuality.TEXTO ||
-                files.kind(bookId, page.fileName) == WebpFormat.Kind.LOSSLESS
-            if (!needsRecode) return@forEachIndexed
-            try {
-                val written = files.recode(bookId, page.fileName, quality)
-                if (written.bytes < page.byteSize) {
-                    pageDao.updateFile(page.id, written.fileName, written.bytes)
-                    files.delete(bookId, page.fileName)
-                    freed += page.byteSize - written.bytes
-                } else {
-                    files.delete(bookId, written.fileName)
+        try {
+            ids.forEachIndexed { index, pageId ->
+                setProgress(workDataOf(KEY_DONE to index, KEY_TOTAL to ids.size))
+                try {
+                    freed += books.compactPage(bookId, pageId, quality)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "Página $pageId não compactada", e)
                 }
-            } catch (e: Exception) {
-                Log.w(TAG, "Página ${page.id} não compactada", e)
             }
+        } finally {
+            // Mesmo se o WorkManager parar no meio, o tamanho do livro fica certo.
+            withContext(NonCancellable) { books.refreshStats(bookId) }
         }
-        bookDao.refreshStats(bookId)
         Log.i(TAG, "Livro $bookId compactado em ${quality.label}: ${freed / 1024} KB liberados")
-        return Result.success(workDataOf(KEY_FREED to freed, KEY_TOTAL to pages.size))
+        return Result.success(workDataOf(KEY_FREED to freed, KEY_TOTAL to ids.size))
     }
 
     companion object {

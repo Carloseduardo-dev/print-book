@@ -73,7 +73,6 @@ class CaptureService : LifecycleService() {
     private val captureMutex = Mutex()
     private var lastSavedSignature: FrameSignature? = null
     private var trigger = AutoCaptureTrigger()
-    private val sharpGate = SharpnessGate()
     private var autoJob: Job? = null
     private var userStopped = false
     private var stopping = false
@@ -94,12 +93,21 @@ class CaptureService : LifecycleService() {
     /** "Capturar o livro todo": leitor do rodapé, progresso e ritmo. */
     private var footerReader: FooterReader? = null
     private var pendingFooter: Bitmap? = null
-    private val pace = PaceMeter()
+    private var pace = PaceMeter()
     private var indicator: PageIndicator? = null
     private var percentStart: Pair<Int, Long>? = null
     private var progressMessage: String? = null
     /** Releitura do rodapé detectou que o leitor voltou sozinho: o automático pausa com esta mensagem. */
     @Volatile private var jumpMessage: String? = null
+
+    /** Gravações que falharam em sequência (ex.: armazenamento cheio): o (semi)automático pausa. */
+    @Volatile private var writeFailures = 0
+    /** Assinatura de cada página gravada recentemente (para a exclusão saber se era a "última"). */
+    private val writtenSignatures = object : LinkedHashMap<Long, FrameSignature>() {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, FrameSignature>?) = size > 8
+    }
+    /** Cada execução do (semi)automático tem um número: resultados assíncronos antigos são descartados. */
+    private var runId = 0
 
     /** Cartão "Captura concluída" mostrado na bolha depois de ✓. */
     private var summaryJob: Job? = null
@@ -108,7 +116,7 @@ class CaptureService : LifecycleService() {
     private enum class Outcome { SAVED, DUPLICATE, BLACK, FAILED }
 
     /** Página já recortada, aguardando o encode/gravação. */
-    private class PageJob(val bitmap: Bitmap, val crop: PixelRect)
+    private class PageJob(val bitmap: Bitmap, val crop: PixelRect, val signature: FrameSignature)
 
     private val turbo: Boolean get() = config?.turbo == true
     private val sampleInterval: Long get() = if (turbo) TURBO_SAMPLE_INTERVAL_MS else SAMPLE_INTERVAL_MS
@@ -119,7 +127,9 @@ class CaptureService : LifecycleService() {
             ACTION_START -> start(intent)
             else -> {
                 userStopped = true
-                stopCapture()
+                // "Parar" da notificação com o cartão de conclusão na tela: só fecha o cartão.
+                if (session == null && stateHolder.state.value.finished != null) closeSummary(stopService = true)
+                else stopCapture()
             }
         }
         return START_NOT_STICKY
@@ -157,7 +167,10 @@ class CaptureService : LifecycleService() {
         percentStart = null
         progressMessage = null
         jumpMessage = null
-        trigger = AutoCaptureTrigger(stableSamples = if (cfg.turbo) TURBO_STABLE_SAMPLES else STABLE_SAMPLES)
+        writeFailures = 0
+        writtenSignatures.clear()
+        pace = PaceMeter()
+        trigger = AutoCaptureTrigger(stableSamples = STABLE_SAMPLES)
         footerReader = if (cfg.wholeBook) FooterReader() else null
 
         val newSession = ProjectionSession(this, projection, onStopped = {
@@ -217,17 +230,19 @@ class CaptureService : LifecycleService() {
             for (job in queue) {
                 try {
                     val saved = books.addPage(cfg.bookId, job.bitmap, cfg.quality)
+                    writeFailures = 0
                     lastSavedPageId = saved.pageId
                     sessionPageIds += saved.pageId
+                    writtenSignatures[saved.pageId] = job.signature
                     Log.i(TAG, "Página ${saved.position + 1}: ${job.crop.width}x${job.crop.height}, ${saved.bytes / 1024} KB, encode ${saved.encodeMs} ms")
                     stateHolder.update {
                         it.copy(captured = it.captured + 1, lastEncodeMs = saved.encodeMs, lastFileBytes = saved.bytes)
                     }
                     updateNotification(stateHolder.state.value.captured)
-                    aura?.flash() // confirma "salvou" depois que o quadro já foi capturado
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
+                    writeFailures++
                     Log.e(TAG, "Falha ao gravar a página", e)
                     stateHolder.update { it.copy(warning = "Falha ao gravar a página: ${e.message}") }
                 } finally {
@@ -258,7 +273,8 @@ class CaptureService : LifecycleService() {
             val newFrame = s.latestFrameNs > before
             o.setVisible(true)
             val diff = hidden?.let { visible.meanAbsDiff(it) } ?: Double.MAX_VALUE
-            bubbleInFrame = !(diff < PROBE_SAME_THRESHOLD)
+            // Só conclui "a bolha não aparece" se um quadro novo chegou com ela escondida e nada mudou.
+            bubbleInFrame = !(newFrame && diff < PROBE_SAME_THRESHOLD)
             Log.i(TAG, "Sonda da bolha: diferença ${"%.2f".format(diff)}, quadro novo=$newFrame → bolha no quadro=$bubbleInFrame")
         }
     }
@@ -267,6 +283,7 @@ class CaptureService : LifecycleService() {
 
     /** Abrir o painel de revisão pausa o (semi)automático: o gesto de virar poderia acertar o painel. */
     private fun toggleReview() {
+        if (stopping) return
         val opening = !stateHolder.state.value.reviewOpen
         if (opening) {
             autoJob?.let { running ->
@@ -286,6 +303,7 @@ class CaptureService : LifecycleService() {
      */
     private fun deleteCapturedPage(pageId: Long) {
         val cfg = config ?: return
+        if (stopping) return
         if (!deletingPages.add(pageId)) return // toque repetido na mesma página
         lifecycleScope.launch {
             try {
@@ -293,10 +311,10 @@ class CaptureService : LifecycleService() {
             } finally {
                 deletingPages.remove(pageId)
             }
-            if (pageId == lastSavedPageId) {
-                lastSavedSignature = null
-                lastSavedPageId = null
-            }
+            // Se a excluída é a página que o dedupe usa como "última", esquece para permitir recapturar.
+            val deletedSig = writtenSignatures.remove(pageId)
+            if (deletedSig != null && deletedSig === lastSavedSignature) lastSavedSignature = null
+            if (pageId == lastSavedPageId) lastSavedPageId = null
             val fromThisSession = sessionPageIds.remove(pageId)
             stateHolder.update {
                 it.copy(captured = if (fromThisSession) (it.captured - 1).coerceAtLeast(0) else it.captured, warning = null)
@@ -310,6 +328,7 @@ class CaptureService : LifecycleService() {
     /** Toque no botão principal: captura (manual) ou liga/pausa o semiautomático/automático. */
     private fun onBubblePrimary() {
         val cfg = config ?: return
+        if (stopping) return // concluindo: a fila está esvaziando
         // Com o painel aberto, o botão principal só fecha a revisão (não religa o automático por baixo dele).
         if (stateHolder.state.value.reviewOpen) {
             stateHolder.update { it.copy(reviewOpen = false) }
@@ -323,11 +342,13 @@ class CaptureService : LifecycleService() {
         if (running?.isActive == true) {
             autoJob = null
             running.cancel()
-            stateHolder.update { it.copy(autoActive = false) }
+            stateHolder.update { it.copy(autoActive = false, eta = null) }
             return
         }
         stateHolder.update { it.copy(autoActive = true, autoStopMessage = null, warning = null) }
         jumpMessage = null
+        runId++
+        pace = PaceMeter() // pausa longa não pode distorcer o tempo restante
         autoJob = lifecycleScope.launch {
             val stop = if (cfg.mode == CaptureMode.AUTO) autoTurnLoop(cfg) else semiAutoLoop()
             onAutoEnded(stop)
@@ -364,11 +385,11 @@ class CaptureService : LifecycleService() {
 
     /** Espera a página nova terminar de ficar nítida (leitores desenham uma versão borrada antes). */
     private suspend fun awaitSharp() {
-        sharpGate.reset()
+        val gate = SharpnessGate(minStableMs = if (turbo) TURBO_SHARP_STABLE_MS else SHARP_STABLE_MS)
         withTimeoutOrNull(if (turbo) TURBO_SHARP_TIMEOUT_MS else SHARP_TIMEOUT_MS) {
             while (true) {
                 val v = withContext(Dispatchers.Default) { session?.sampleSharpness() }
-                if (v == null || sharpGate.onSample(v)) break
+                if (v == null || gate.onSample(v, SystemClock.elapsedRealtime())) break
                 delay(sampleInterval)
             }
         }
@@ -383,14 +404,21 @@ class CaptureService : LifecycleService() {
             delay(sampleInterval)
             val signature = sampleNow() ?: continue
             if (trigger.onSample(signature)) {
-                val settledPage = trigger.lastSample
                 awaitSharp()
+                // Referência = a página nítida que vai ser capturada (amostrada ANTES da captura,
+                // para uma virada feita logo depois não virar a referência).
+                val capturedPage = sampleNow()
                 if (captureOnce() == Outcome.BLACK) return AutoEnd(AutoTurnController.Reason.BLOCKED.message, false)
-                armWith(settledPage)
+                armWith(capturedPage)
+                saveFailureEnd()?.let { return it }
             }
         }
         return AutoEnd("Pausado", false)
     }
+
+    /** Gravações falhando em sequência (ex.: armazenamento cheio): pausa em vez de seguir perdendo páginas. */
+    private fun saveFailureEnd(): AutoEnd? =
+        if (writeFailures >= MAX_WRITE_FAILURES) AutoEnd(SAVE_FAILED_MESSAGE, false) else null
 
     /**
      * Automático (flavor pessoal): captura a página atual, vira pela Acessibilidade, espera a nova
@@ -408,19 +436,24 @@ class CaptureService : LifecycleService() {
 
         val first = sampleNow()
         var result = captureOnce(readFooter = cfg.wholeBook).toTurnResult()
-        val maxPages = if (cfg.wholeBook) setupWholeBook() else cfg.maxPages
+        // Ao retomar, a página atual já está salva (sai como repetida): não conta no que falta.
+        val maxPages = if (cfg.wholeBook) setupWholeBook(alreadySaved = result == AutoTurnController.Result.DUPLICATE) else cfg.maxPages
         val controller = AutoTurnController(maxPages = maxPages)
         armWith(first)
+        val myRun = runId
         var lastTurnAt = 0L
 
         while (currentCoroutineContext().isActive) {
-            when (val decision = controller.onResult(result)) {
+            val decision = controller.onResult(result)
+            // Progresso antes de decidir parar: a última página também aparece ("42/42").
+            if (result == AutoTurnController.Result.SAVED) onProgress(controller.savedPages)
+            when (decision) {
                 is AutoTurnController.Decision.Stop ->
                     return AutoEnd(stopMessage(decision.reason, controller.savedPages), true)
                 is AutoTurnController.Decision.Pause -> return AutoEnd(decision.reason.message, false)
                 AutoTurnController.Decision.Continue -> Unit
             }
-            if (result == AutoTurnController.Result.SAVED) onProgress(controller.savedPages)
+            saveFailureEnd()?.let { return it }
 
             // Ritmo: intervalo mínimo + variação aleatória entre viradas (no Turbo, bem menores).
             val wait = lastTurnAt + interval + Random.nextLong(0, jitter) - SystemClock.elapsedRealtime()
@@ -467,16 +500,17 @@ class CaptureService : LifecycleService() {
             jumpMessage?.let { return AutoEnd(it, false) }
 
             result = if (settled) {
-                val settledPage = trigger.lastSample
                 awaitSharp()
+                val capturedPage = sampleNow() // referência = a página nítida capturada
                 // Livro todo: relê o rodapé de tempos em tempos (porcentagem, ou conferir a página).
                 val reread = cfg.wholeBook && indicator != null && (controller.savedPages + 1) % REREAD_EVERY == 0
                 captureOnce(readFooter = reread).toTurnResult().also {
-                    if (reread && it == AutoTurnController.Result.SAVED) rereadIndicatorAsync(controller.savedPages + 1)
-                    armWith(settledPage)
+                    if (reread && it == AutoTurnController.Result.SAVED) rereadIndicatorAsync(controller.savedPages + 1, myRun)
+                    armWith(capturedPage)
                 }
             } else {
-                armWith(null)
+                // A tela não estabilizou: antes da próxima virada, espera uma referência estável.
+                trigger.resetReference()
                 AutoTurnController.Result.NO_CHANGE
             }
         }
@@ -500,14 +534,16 @@ class CaptureService : LifecycleService() {
     // ---- Livro todo: total de páginas, progresso e tempo restante ----
 
     /** Lê o rodapé da primeira página e devolve o limite da sessão (páginas que faltam, contando a atual). */
-    private suspend fun setupWholeBook(): Int? {
+    private suspend fun setupWholeBook(alreadySaved: Boolean): Int? {
         val footer = pendingFooter.also { pendingFooter = null }
         val read = footer?.let { footerReader?.read(it) }
         indicator = read
         Log.i(TAG, "Indicador do leitor: $read")
-        val target = read?.pagesToCapture
+        val target = read?.pagesToCapture?.let { if (alreadySaved) it - 1 else it }?.takeIf { it > 0 }
+        // Ao retomar, a primeira página "nova" é a seguinte à que está na tela.
+        if (alreadySaved && read?.current != null) indicator = read.copy(current = read.current + 1)
         when {
-            target != null -> stateHolder.update { it.copy(targetPages = target, progressLabel = "1/$target") }
+            target != null -> stateHolder.update { it.copy(targetPages = target, progressLabel = "0/$target", eta = null) }
             read?.percent != null -> {
                 percentStart = read.percent to SystemClock.elapsedRealtime()
                 stateHolder.update { it.copy(progressLabel = "${read.percent}%") }
@@ -552,11 +588,12 @@ class CaptureService : LifecycleService() {
      * de leitura voltou para trás sozinho (ex.: sincronizou a posição com a nuvem), pausa em vez
      * de capturar páginas repetidas; se pulou para frente, recalcula o progresso.
      */
-    private fun rereadIndicatorAsync(savedIncludingThis: Int) {
+    private fun rereadIndicatorAsync(savedIncludingThis: Int, run: Int) {
         val footer = pendingFooter.also { pendingFooter = null } ?: return
         val reader = footerReader ?: return footer.recycle()
         lifecycleScope.launch {
             val read = reader.read(footer) ?: return@launch
+            if (run != runId) return@launch // resultado de uma execução anterior (pausou e retomou)
             val current = indicator ?: return@launch
             if (read.percent != null) indicator = current.copy(percent = read.percent)
             val start = current.current ?: return@launch
@@ -634,10 +671,20 @@ class CaptureService : LifecycleService() {
                         stateHolder.update { it.copy(duplicatesSkipped = it.duplicatesSkipped + 1, warning = "Página repetida ignorada") }
                         Outcome.DUPLICATE
                     } else {
+                        // Fila curta: se o encode atrasar, a captura espera (memória limitada). O envio
+                        // não é cancelável: uma página já capturada sempre entra na fila. Só depois
+                        // ela vira a "última salva" do dedupe.
+                        try {
+                            withContext(NonCancellable) { queue.send(PageJob(processed.bitmap, processed.crop, processed.signature)) }
+                        } catch (e: Exception) {
+                            processed.bitmap.recycle() // fila fechada (concluindo)
+                            throw e
+                        }
                         lastSavedSignature = processed.signature
-                        // Fila curta: se o encode atrasar, a captura espera (memória limitada).
-                        queue.send(PageJob(processed.bitmap, processed.crop))
-                        Outcome.SAVED
+                        // Confirma a captura aqui, entre uma captura e outra (nunca a partir da gravação
+                        // em paralelo, que poderia acender a aura no meio do próximo quadro).
+                        aura?.flash()
+                        if (writeFailures > 0) Outcome.FAILED else Outcome.SAVED
                     }
                 }
             }
@@ -672,15 +719,18 @@ class CaptureService : LifecycleService() {
         autoJob?.cancel()
         autoJob = null
         lifecycleScope.launch(NonCancellable) {
-            writeQueue?.close()
+            captureMutex.withLock { writeQueue?.close() } // espera a captura em andamento entrar na fila
             writerJob?.join()
             writeQueue = null
             writerJob = null
             teardown(showSummary)
+            stopping = false
         }
     }
 
     private suspend fun teardown(showSummary: Boolean) {
+        autoJob?.cancel()
+        autoJob = null
         previewJob?.cancel()
         previewJob = null
         aura?.dismiss()
@@ -778,7 +828,11 @@ class CaptureService : LifecycleService() {
         private const val HIDE_SETTLE_MS = 110L
         private const val CAPTURE_TIMEOUT_MS = 2_000L
         private const val SAMPLE_INTERVAL_MS = 150L
+        /** Amostras estáveis seguidas (no Turbo são mais próximas: 3 × 60 ms). */
         private const val STABLE_SAMPLES = 3
+        /** Gravações seguidas com falha antes de pausar. */
+        private const val MAX_WRITE_FAILURES = 3
+        private const val SAVE_FAILED_MESSAGE = "Captura pausada: não foi possível gravar as páginas. Verifique o espaço livre no aparelho."
         /** Variação aleatória somada ao intervalo da virada automática. */
         private const val JITTER_MS = 700L
         private const val REFERENCE_TIMEOUT_MS = 2_000L
@@ -795,8 +849,10 @@ class CaptureService : LifecycleService() {
         private const val TURBO_MIN_INTERVAL_MS = 900L
         private const val TURBO_JITTER_MS = 250L
         private const val TURBO_SAMPLE_INTERVAL_MS = 60L
-        private const val TURBO_STABLE_SAMPLES = 3
         private const val TURBO_SHARP_TIMEOUT_MS = 700L
+        /** Tempo mínimo com a nitidez no máximo antes de capturar (versão borrada parada não passa). */
+        private const val SHARP_STABLE_MS = 300L
+        private const val TURBO_SHARP_STABLE_MS = 150L
 
         // Sonda da bolha
         private const val PROBE_DELAY_MS = 1_200L

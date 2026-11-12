@@ -34,7 +34,8 @@ class PageFileStore @Inject constructor(@ApplicationContext private val appConte
     /** Escrita atômica: grava em .tmp e renomeia. */
     fun write(bookId: Long, bitmap: Bitmap, quality: PageQuality = PageQuality.MAXIMA): Written {
         val dir = bookDir(bookId).apply { mkdirs() }
-        val name = "${UUID.randomUUID()}.webp"
+        // Páginas no modo Texto levam o prefixo "g-" (cinza): a compactação sabe que já estão no menor formato.
+        val name = (if (quality == PageQuality.TEXTO) TEXT_PREFIX else "") + "${UUID.randomUUID()}.webp"
         val target = File(dir, name)
         val tmp = File(dir, "$name.tmp")
         val start = System.nanoTime()
@@ -74,6 +75,9 @@ class PageFileStore @Inject constructor(@ApplicationContext private val appConte
         Canvas(out).drawBitmap(src, 0f, 0f, paint)
         return out
     }
+
+    /** Página gravada no modo Texto (tons de cinza, sem perda)? */
+    fun isText(fileName: String): Boolean = fileName.startsWith(TEXT_PREFIX)
 
     /** Formato atual de uma página (lido do cabeçalho do arquivo). */
     fun kind(bookId: Long, fileName: String): WebpFormat.Kind {
@@ -137,5 +141,6 @@ class PageFileStore @Inject constructor(@ApplicationContext private val appConte
         const val LOSSLESS_EFFORT = 75
         const val LOSSY_QUALITY = 90
         const val COVER_MAX_WIDTH = 1080
+        const val TEXT_PREFIX = "g-"
     }
 }

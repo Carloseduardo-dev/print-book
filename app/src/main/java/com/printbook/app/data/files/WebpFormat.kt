@@ -2,7 +2,8 @@ package com.printbook.app.data.files
 
 /**
  * Lê o tipo de compressão de um WebP pelo cabeçalho RIFF (sem decodificar a imagem):
- * "VP8L" = sem perda (qualidade Máxima), "VP8 " = com perda (Econômica/Texto).
+ * "VP8L" = sem perda (Máxima e Texto), "VP8 " = com perda (Econômica). O modo Texto se distingue
+ * pelo prefixo do nome do arquivo (ver PageFileStore.isText).
  */
 object WebpFormat {
     enum class Kind { LOSSLESS, LOSSY, UNKNOWN }

@@ -119,6 +119,18 @@ Bugs encontrados e corrigidos durante o teste:
 
 Observação: em 3 de 32 tentativas, um toque `adb input tap` na bolha durante o automático Turbo não chegou à janela. O toque do adb é um evento injetado, como o gesto da Acessibilidade; um toque de dedo não é. Falta confirmar com o dedo.
 
+## Teste 8: 2026-11-11, depois da revisão de código do Turbo (feito por Claude via ADB)
+
+| Teste | Resultado |
+|---|---|
+| Automático Turbo + livro todo (app único) | 37 páginas em 44,7 s (~1,2 s/página) com a espera mínima de nitidez (150 ms) |
+| Pausar e retomar no livro todo | Retomou na p. 512 (a última antes da pausa era a 511): sem repetida, alvo 42 = 553 − 512 + 1; bolha "12/42" com o leitor em 523/553 |
+| Fim do livro | Parou exatamente em 553/553 ("Fim do livro: 42 páginas capturadas"); a última página foi gravada depois da mensagem (fila esvaziada) |
+| Tela inteira + Texto (gravação mais lenta) | 27 páginas (527–553), ~2,1 s/página (esconde a bolha a cada página). Nenhuma com bolha ou aura; todas com o prefixo `g-` |
+| Compactar Máxima → Texto | 14,5 MB → 6,0 MB; repetir a compactação: "já estava compactado", sem recodificar |
+
+Correções desta rodada: aura acesa só entre capturas (nunca pela gravação em paralelo); falhas de gravação pausam o (semi)automático; envio para a fila não cancelável e dedupe atualizado só depois do envio; referência do gatilho tirada da página nítida; nitidez precisa ficar no máximo por um tempo mínimo; bolha sem ação enquanto a fila esvazia; resultados antigos do rodapé descartados; OCR do rodapé libera a imagem só no fim; compactação sob o lock de excluir livro/páginas e sem reprocessar páginas Texto; sonda da bolha na dúvida esconde; "Parar" funciona com o cartão de conclusão; ritmo e alvo corrigidos ao retomar.
+
 ## Pendentes
 - [x] Repetir o teste após a correção da bolha (Minha Biblioteca e Kindle)
 - [x] Captura de **um app só**: a bolha não aparece. Quadro de 1080×2340.

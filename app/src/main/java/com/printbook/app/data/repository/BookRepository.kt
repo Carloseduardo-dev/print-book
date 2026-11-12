@@ -21,6 +21,7 @@ import com.printbook.app.data.db.entity.CollectionEntity
 import com.printbook.app.data.db.entity.PageEntity
 import com.printbook.app.data.db.entity.SourceApp
 import com.printbook.app.data.files.PageFileStore
+import com.printbook.app.data.files.WebpFormat
 import com.printbook.app.data.prefs.PageQuality
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -139,9 +140,42 @@ class BookRepository @Inject constructor(
     }
 
     suspend fun deleteBook(id: Long) = withContext(Dispatchers.IO) {
-        bookDao.delete(id)
-        files.deleteBook(id)
+        insertLock.withLock { // não corre junto com compactação/inserção de páginas
+            bookDao.delete(id)
+            files.deleteBook(id)
+        }
     }
+
+    /**
+     * Compacta uma página (Liberar espaço). Sob o mesmo lock de inserir/excluir: se a página ou o
+     * livro foram apagados no meio, não grava nada. Mantém a original se a nova não ficar menor.
+     * @return bytes liberados.
+     */
+    suspend fun compactPage(bookId: Long, pageId: Long, quality: PageQuality): Long = withContext(Dispatchers.IO) {
+        insertLock.withLock {
+            val page = pageDao.getByIds(listOf(pageId)).firstOrNull() ?: return@withLock 0L
+            if (bookDao.get(bookId) == null) return@withLock 0L
+            // Já está no formato pedido (ou num menor): nada a fazer.
+            if (files.isText(page.fileName)) return@withLock 0L
+            if (quality == PageQuality.ECONOMICA && files.kind(bookId, page.fileName) != WebpFormat.Kind.LOSSLESS) return@withLock 0L
+            val written = files.recode(bookId, page.fileName, quality)
+            if (written.bytes >= page.byteSize) {
+                files.delete(bookId, written.fileName)
+                return@withLock 0L
+            }
+            try {
+                pageDao.updateFile(page.id, written.fileName, written.bytes)
+            } catch (e: Throwable) {
+                files.delete(bookId, written.fileName)
+                throw e
+            }
+            files.delete(bookId, page.fileName)
+            page.byteSize - written.bytes
+        }
+    }
+
+    suspend fun pageIds(bookId: Long): List<Long> = pageDao.getForBook(bookId).map { it.id }
+    suspend fun refreshStats(bookId: Long) = bookDao.refreshStats(bookId)
 
     // ---- Páginas ----
     data class SavedPage(val pageId: Long, val bytes: Long, val encodeMs: Long, val position: Int)

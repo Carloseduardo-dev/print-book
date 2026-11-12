@@ -24,29 +24,44 @@ object Sharpness {
 }
 
 /**
- * Decide quando a página nova terminou de "ficar nítida": libera quando as duas últimas medições
- * estão perto do máximo visto nesta virada (a nitidez parou de subir). Páginas quase sem
- * conteúdo (valor muito baixo) liberam direto.
+ * Decide quando a página nova terminou de "ficar nítida": libera quando a nitidez fica perto do
+ * máximo visto nesta virada por pelo menos [minStableMs] (e [minSamples] medições). O tempo mínimo
+ * evita liberar uma versão provisória borrada que fica parada na tela antes da nítida chegar
+ * (tela parada não gera quadros novos, então duas medições seguidas sempre "batem").
+ * Páginas quase sem conteúdo (valor muito baixo) liberam direto.
  */
 class SharpnessGate(
+    private val minStableMs: Long = 300,
     private val ratio: Double = 0.98,
     private val minSamples: Int = 2,
     private val blankBelow: Double = 0.5,
 ) {
     private var max = 0.0
-    private val recent = ArrayDeque<Double>()
+    private var stableSince = -1L
+    private var stableCount = 0
 
     fun reset() {
         max = 0.0
-        recent.clear()
+        stableSince = -1L
+        stableCount = 0
     }
 
-    /** @return true quando a página pode ser capturada. */
-    fun onSample(value: Double): Boolean {
+    /** @return true quando a página pode ser capturada. [nowMs] = relógio monotônico em ms. */
+    fun onSample(value: Double, nowMs: Long): Boolean {
+        if (value > max * (2 - ratio)) {
+            // Subiu de verdade: recomeça a contagem de estabilidade.
+            stableSince = -1L
+            stableCount = 0
+        }
         if (value > max) max = value
-        recent.addLast(value)
-        while (recent.size > minSamples) recent.removeFirst()
         if (max < blankBelow) return true
-        return recent.size >= minSamples && recent.all { it >= max * ratio }
+        if (value >= max * ratio) {
+            if (stableSince < 0) stableSince = nowMs
+            stableCount++
+        } else {
+            stableSince = -1L
+            stableCount = 0
+        }
+        return stableCount >= minSamples && nowMs - stableSince >= minStableMs
     }
 }
