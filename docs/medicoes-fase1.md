@@ -140,6 +140,9 @@ Correções desta rodada: aura acesa só entre capturas (nunca pela gravação e
 ## Backlog
 
 - **Modo Turbo:** feito (Teste 7). Capturar o livro inteiro **sem exibir** as páginas continua inviável: exigiria quebrar o DRM dos apps (art. 107 da Lei 9.610), o que está fora de questão. A opção "Capturar o livro todo" vira e mostra cada página.
+- **Turbo mais rápido na "tela inteira" (registrado em 2026-11-11, para depois):** hoje cada página leva ~2,1 s na tela inteira contra ~1,2 s em "Compartilhar um app", porque a bolha precisa sumir de cada print. Ideias:
+  - orientar no app, com o Turbo ligado: "para a velocidade máxima, escolha *Compartilhar um app*";
+  - no automático, deixar a bolha escondida durante a sequência e mostrar só na pausa ou no fim (a pausa fica pela notificação).
 - **Leitura em voz alta (adiada pelo usuário em 2026-11-11):**
   - O protótipo usava o `TextToSpeech` do Android (voz pt-BR offline `pt-br-x-afs-seanet-embedded`) sobre o texto do OCR, com avanço automático.
   - Bug encontrado antes de pausar: depois da primeira página, o avanço pulou da página 30 para a 33 sem ler a 31 e a 32 (as duas com texto de 1,8 a 2,8 mil caracteres). Causa ainda não identificada (callbacks `onDone`/`onStop` × `QUEUE_FLUSH`).

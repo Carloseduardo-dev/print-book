@@ -53,11 +53,11 @@ Todo dia a gente encontra algo que quer guardar: a página de um livro que marco
 O **print-book** reúne tudo num só lugar. Ele captura o que aparece na tela de qualquer aplicativo que permita captura (leitores, navegador, PDFs, materiais de estudo) e organiza em coleções com busca no texto e uma leitura confortável, **mesmo sem conexão**: numa viagem, num voo, no metrô ou numa região sem sinal.
 
 **Para que serve**
-- 📚 **Leitura:** páginas dos livros que você já tem nos seus apps de leitura, para continuar lendo offline.
-- 🍲 **Receitas:** um caderno de receitas sempre à mão, até na cozinha sem Wi-Fi.
-- 💻 **Estudo e trabalho:** documentações, artigos e tutoriais reunidos por assunto.
-- 🗂️ **Organização pessoal:** guias, referências e anotações que você consulta sempre.
-- 🖼️ **Catálogos:** coleções de imagens e inspirações, do seu jeito.
+- **Leitura:** páginas dos livros que você já tem nos seus apps de leitura, para continuar lendo offline.
+- **Receitas:** um caderno de receitas sempre à mão, até na cozinha sem Wi-Fi.
+- **Estudo e trabalho:** documentações, artigos e tutoriais reunidos por assunto.
+- **Organização pessoal:** guias, referências e anotações que você consulta sempre.
+- **Catálogos:** coleções de imagens e inspirações, do seu jeito.
 
 **Princípios do projeto**
 - **Guardar sem esforço:** do toque na bolha à página organizada, sem sair do app em que você está.
@@ -72,13 +72,13 @@ O **print-book** reúne tudo num só lugar. Ele captura o que aparece na tela de
 
 | | |
 |---|---|
-| ⚡ **Captura automática + Turbo** | Vira as páginas sozinho e para no fim do livro. No modo Turbo, **100 páginas em menos de 2 minutos** (~1,1 s por página), com progresso e tempo restante. |
-| 🔎 **Busca no texto, offline** | OCR no próprio aparelho + índice FTS4 que ignora acentos ("aproximacao" encontra "aproximação"). |
-| 👀 **Revisão na hora** | A bolha mostra a última captura; um toque abre a faixa de miniaturas para conferir e excluir uma página ruim sem sair do app de leitura. |
-| 🎯 **Precisão medida** | **200/200 páginas** capturadas sem perda ou duplicata em teste real; **482/482** páginas indexadas sem falha. |
-| 🧱 **Arquitetura limpa** | Single-Activity, MVVM, Hilt, Room, WorkManager; lógica de imagem em **funções puras testadas na JVM**. |
-| 🛡️ **Ético por construção** | Respeita `FLAG_SECURE`; automação isolada numa variante de build que nem entra no APK publicável. |
-| 🎨 **Design system próprio** | Tokens claro/escuro, tipografia Geist, iconografia e ícone adaptativo próprios, e a animação "aura de captura". |
+| **Captura automática + Turbo** | Vira as páginas sozinho e para no fim do livro. No modo Turbo, **100 páginas em cerca de 2 minutos** (~1,2 s por página), com progresso e tempo restante. |
+| **Busca no texto, offline** | OCR no próprio aparelho + índice FTS4 que ignora acentos ("aproximacao" encontra "aproximação"). |
+| **Revisão na hora** | A bolha mostra a última captura; um toque abre a faixa de miniaturas para conferir e excluir uma página ruim sem sair do app de leitura. |
+| **Precisão medida** | **200/200 páginas** capturadas sem perda ou duplicata em teste real; **482/482** páginas indexadas sem falha. |
+| **Arquitetura limpa** | Single-Activity, MVVM, Hilt, Room, WorkManager; lógica de imagem em **funções puras testadas na JVM**. |
+| **Ético por construção** | Respeita `FLAG_SECURE`; automação isolada numa variante de build que nem entra no APK publicável. |
+| **Design system próprio** | Tokens claro/escuro, tipografia Geist, iconografia e ícone adaptativo próprios, e a animação "aura de captura". |
 
 ---
 
@@ -110,7 +110,7 @@ O **print-book** reúne tudo num só lugar. Ele captura o que aparece na tela de
   - **Manual:** um toque por página.
   - **Semiautomático:** o leitor vira a página e o app captura quando a tela estabiliza.
   - **Automático:** o app vira as páginas e reconhece o fim do livro.
-  - **Turbo** (Semi e Automático): ~1,1 s por página, gravando em paralelo com a próxima virada.
+  - **Turbo** (Semi e Automático): ~1,2 s por página, gravando em paralelo com a próxima virada.
 - **Capturar o livro todo:** lê o total de páginas no rodapé do leitor (OCR offline), mostra o progresso e o tempo restante e para na última página.
 - Só captura a página quando ela está **parada e nítida** (sem o fim da animação de virada nem a versão provisória borrada que alguns leitores desenham primeiro).
 - Recorte automático das barras do leitor, dos rodapés de progresso e das margens, por perfil de aplicativo.
@@ -303,6 +303,7 @@ No Android Studio, escolha a variante em **View → Tool Windows → Build Varia
 - [x] Modo Turbo, captura do livro todo e compactação de livros
 - [ ] Captura de página longa (rolagem) para sites, artigos e receitas
 - [ ] Perfil "Web/Documento" e modelos de coleção (Receitas, Estudos, Leitura)
+- [ ] Turbo mais rápido também na captura de tela inteira (bolha escondida durante a sequência)
 - [ ] Leitura em voz alta sobre o texto reconhecido
 - [ ] Publicação da edição para lojas
 

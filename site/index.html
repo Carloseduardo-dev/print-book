@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>print-book</title>
+<meta name="description" content="Guarde o que importa. Leia onde estiver. Livros, artigos, receitas, tutoriais e documentações viram coleções organizadas, pesquisáveis e disponíveis offline.">
+<meta name="theme-color" content="#14130F">
+<meta property="og:type" content="website">
+<meta property="og:title" content="print-book: guarde o que importa, leia onde estiver">
+<meta property="og:description" content="Livros, artigos, receitas e documentações em coleções organizadas e disponíveis offline. Sem conta, sem nuvem, sem anúncios.">
+<meta property="og:image" content="assets/banner.png">
+<link rel="icon" href="assets/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #14130F; --surface: #1D1B16; --surface-2: #26231D; --line: #34302A;
+    --text: #ECE5D6; --text-2: #B5AC9A; --text-3: #827A6A;
+    --copper: #D58E55; --copper-soft: #3A2A1C; --on-copper: #1C1A16; --ok: #8DB486;
+    --a1: #D58E55; --a2: #F2BE5C; --a3: #E07A8A; --a4: #9C82E8; --a5: #5FB59E;
+    --paper: #F6F0E4; --ink: #1C1A16;
+    --radius: 22px; --max: 1160px;
+    --gutter: 16px;
+  }
+  @media (min-width: 720px) { :root { --gutter: 32px; } }
+
+  @property --angle { syntax: "<angle>"; initial-value: 0deg; inherits: false; }
+  @keyframes spin { to { --angle: 360deg; } }
+  @keyframes bob { 0%, 100% { translate: 0 0; } 50% { translate: 0 -10px; } }
+  @keyframes marquee { to { transform: translateX(-50%); } }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(213,142,85,.55); } 100% { box-shadow: 0 0 0 18px rgba(213,142,85,0); } }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text); overflow-x: hidden;
+    font-family: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 17px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+  }
+  img { max-width: 100%; height: auto; display: block; }
+  a { color: inherit; }
+  button { font: inherit; color: inherit; }
+  .mono { font-family: "Geist Mono", ui-monospace, monospace; }
+  .wrap { max-width: var(--max); margin: 0 auto; padding: 0 var(--gutter); }
+  section { padding: 64px 0; position: relative; }
+  @media (min-width: 900px) { section { padding: 96px 0; } }
+
+  /* ---------- Aura ---------- */
+  .aura { position: relative; isolation: isolate; }
+  .aura::before {
+    content: ""; position: absolute; inset: calc(var(--w, 2px) * -1); border-radius: inherit; z-index: -1;
+    background: conic-gradient(from var(--angle), var(--a1), var(--a2), var(--a3), var(--a4), var(--a5), var(--a1));
+    animation: spin 6s linear infinite;
+  }
+  .aura.glow::after {
+    content: ""; position: absolute; inset: -16px; border-radius: inherit; z-index: -2;
+    background: conic-gradient(from var(--angle), var(--a1), var(--a2), var(--a3), var(--a4), var(--a5), var(--a1));
+    filter: blur(34px); opacity: .32; animation: spin 6s linear infinite;
+  }
+
+  /* ---------- Navegação ---------- */
+  header.nav { position: sticky; top: 0; z-index: 50; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    background: color-mix(in srgb, var(--bg) 80%, transparent); border-bottom: 1px solid var(--line); }
+  .nav .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; gap: 12px; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 600; letter-spacing: -.01em; }
+  .brand img { width: 30px; height: 30px; border-radius: 8px; }
+  .nav nav { display: none; gap: 28px; font-size: 15px; color: var(--text-2); }
+  .nav nav a { text-decoration: none; } .nav nav a:hover { color: var(--text); }
+  @media (min-width: 900px) { .nav nav { display: flex; } }
+
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 52px; padding: 0 22px;
+    border-radius: 16px; font-weight: 600; font-size: 16px; text-decoration: none; border: 0; cursor: pointer; white-space: nowrap; }
+  .btn-primary { background: var(--copper); color: var(--on-copper); }
+  .btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--line); }
+  .btn-ghost:hover { border-color: var(--text-3); }
+  .btn-sm { min-height: 40px; padding: 0 14px; font-size: 14px; border-radius: 12px; }
+  .badge-soon { font-size: 12px; font-weight: 500; padding: 3px 8px; border-radius: 999px; background: rgba(28,26,22,.16); }
+
+  /* ---------- Hero ---------- */
+  .hero { padding: 40px 0 24px; overflow: hidden; }
+  .hero .wrap { display: grid; gap: 28px; align-items: center; }
+  @media (min-width: 980px) { .hero { padding: 80px 0 64px; } .hero .wrap { grid-template-columns: 1fr 1fr; gap: 40px; } }
+  .eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--copper);
+    border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; }
+  .eyebrow .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok); }
+  h1 { font-size: clamp(38px, 10.5vw, 70px); line-height: 1.03; letter-spacing: -.035em; margin: 18px 0; font-weight: 700; text-wrap: balance; }
+  .grad { background: linear-gradient(90deg, var(--a1), var(--a2), var(--a3), var(--a4)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lede { font-size: clamp(17px, 2.2vw, 21px); color: var(--text-2); max-width: 34ch; margin: 0 0 26px; }
+  .cta-row { display: flex; flex-wrap: wrap; gap: 12px; }
+  @media (max-width: 480px) { .cta-row .btn { width: 100%; } }
+  .rotator { display: grid; height: 1.6em; overflow: hidden; color: var(--text); font-weight: 600; }
+  .rotator span { grid-area: 1 / 1; opacity: 0; transform: translateY(100%); transition: opacity .45s ease, transform .45s ease; white-space: nowrap; }
+  .rotator span.on { opacity: 1; transform: none; }
+  .rotator span.out { opacity: 0; transform: translateY(-100%); }
+  .rotator span::after { content: ""; display: inline-block; width: .5em; height: 3px; margin-left: 6px; vertical-align: middle; border-radius: 2px;
+    background: linear-gradient(90deg, var(--a1), var(--a3)); }
+
+  /* Palco do hero: celular + cartões das fontes flutuando */
+  .stage { position: relative; height: 560px; width: 100%; max-width: 560px; justify-self: center; }
+  @media (max-width: 520px) { .stage { height: 500px; } }
+  .phone { position: absolute; left: 50%; top: 50%; width: 220px; translate: -50% -50%; border-radius: 38px; background: #0E0D0B; padding: 8px; }
+  .phone img { border-radius: 31px; width: 100%; }
+  @media (min-width: 520px) { .phone { width: 250px; } }
+  .float { position: absolute; will-change: transform; animation: bob 7s ease-in-out infinite; }
+  .float:nth-of-type(2) { animation-delay: -1.5s; } .float:nth-of-type(3) { animation-delay: -3s; }
+  .float:nth-of-type(4) { animation-delay: -4.5s; } .float:nth-of-type(5) { animation-delay: -6s; }
+  .src { border-radius: 16px; box-shadow: 0 18px 40px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.06); overflow: hidden; }
+  .tag { position: absolute; top: -10px; left: 12px; font: 500 11px/1 "Geist Mono", monospace; padding: 5px 8px; border-radius: 999px;
+    background: var(--bg); color: var(--copper); border: 1px solid var(--line); white-space: nowrap; }
+
+  /* Fontes: cada uma com a sua cara (e a sua tipografia) */
+  .s-recipe { width: 170px; background: #FFF6E6; color: #3B2A1A; padding: 16px 14px 14px; }
+  .s-recipe h4 { font: 600 24px/1 "Caveat", cursive; margin: 0 0 8px; color: #B0602C; }
+  .s-recipe ul { margin: 0; padding-left: 16px; font-size: 12px; line-height: 1.5; }
+  .s-doc { width: 200px; background: #0F1117; color: #C9D1D9; font: 11px/1.6 "Geist Mono", monospace; }
+  .s-doc .bar { display: flex; gap: 5px; padding: 8px 10px; background: #161B22; align-items: center; }
+  .s-doc .bar i { width: 7px; height: 7px; border-radius: 50%; background: #3A3F47; display: block; }
+  .s-doc .bar b { font-weight: 400; color: #7D8590; margin-left: 6px; font-size: 10px; }
+  .s-doc pre { margin: 0; padding: 10px 12px 12px; white-space: pre; }
+  .k { color: #FF7B72; } .f { color: #D2A8FF; } .st { color: #A5D6FF; } .c { color: #7D8590; }
+  .s-article { width: 190px; background: #FFFFFF; color: #111; padding: 12px; }
+  .s-article .img { height: 64px; border-radius: 8px; margin-bottom: 8px; background: linear-gradient(135deg, #5FB59E, #9C82E8 60%, #E07A8A); }
+  .s-article h4 { font: 600 16px/1.15 "Newsreader", serif; margin: 0 0 6px; }
+  .s-article p { font: 11px/1.45 "Geist", sans-serif; color: #555; margin: 0; }
+  .s-book { width: 170px; background: #F6F0E4; color: #2A251E; padding: 14px; font: 12px/1.5 "Newsreader", serif; }
+  .s-book small { font: 500 9px/1 "Geist Mono", monospace; color: #B0602C; letter-spacing: .08em; display: block; margin-bottom: 6px; }
+  .s-book .drop { float: left; font: 600 34px/0.8 "Newsreader", serif; margin: 4px 6px 0 0; color: #B0602C; }
+  .s-catalog { width: 150px; background: #1D1B16; padding: 8px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .s-catalog i { aspect-ratio: 1; border-radius: 8px; display: block; }
+  .s-catalog i:nth-child(1) { background: linear-gradient(135deg, #F2BE5C, #D58E55); }
+  .s-catalog i:nth-child(2) { background: linear-gradient(135deg, #5FB59E, #2E6B5E); }
+  .s-catalog i:nth-child(3) { background: linear-gradient(135deg, #9C82E8, #5B47A8); }
+  .s-catalog i:nth-child(4) { background: linear-gradient(135deg, #E07A8A, #A0445A); }
+
+  /* Posições no palco (celular pequeno primeiro) */
+  .p-recipe { left: 0; top: 18px; } .p-doc { right: 0; top: 70px; } .p-article { left: 4px; bottom: 48px; }
+  .p-book { right: 6px; bottom: 16px; } .p-catalog { left: 50%; bottom: -26px; margin-left: -66px; }
+  @media (max-width: 520px) {
+    .float .src { transform-origin: center; }
+    .p-recipe, .p-doc, .p-article, .p-book { scale: .74; }
+    .p-recipe { left: -20px; top: 10px; } .p-doc { right: -30px; top: 60px; }
+    .p-article { left: -24px; bottom: 30px; } .p-book { right: -22px; bottom: 6px; }
+    .p-catalog { display: none; }
+  }
+
+  /* ---------- Faixa de fontes (letreiro) ---------- */
+  .marquee { border-block: 1px solid var(--line); padding: 18px 0; overflow: hidden; mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); }
+  .marquee .track { display: flex; gap: 12px; width: max-content; animation: marquee 38s linear infinite; }
+  .marquee:hover .track { animation-play-state: paused; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); color: var(--text-2); font-size: 15px; white-space: nowrap; }
+
+  .ic { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .pill .ic { color: var(--copper); }
+  .tab { display: inline-flex; align-items: center; gap: 8px; }
+
+  /* ---------- Cabeçalhos ---------- */
+  .section-head { max-width: 680px; margin-bottom: 32px; }
+  .kicker { font: 500 13px/1 "Geist Mono", monospace; color: var(--copper); }
+  h2 { font-size: clamp(30px, 6.5vw, 46px); line-height: 1.08; letter-spacing: -.03em; margin: 12px 0 12px; text-wrap: balance; }
+  .section-head p { color: var(--text-2); margin: 0; font-size: 18px; }
+
+  /* ---------- Demo ao vivo ---------- */
+  .tabs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 18px; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { flex: none; border: 1px solid var(--line); background: var(--surface); color: var(--text-2); padding: 9px 14px; border-radius: 12px; cursor: pointer; font-size: 15px; }
+  .tab[aria-selected="true"] { background: var(--copper); color: var(--on-copper); border-color: var(--copper); font-weight: 600; }
+  .demo { position: relative; display: grid; gap: 18px; }
+  @media (min-width: 900px) { .demo { grid-template-columns: 1.25fr .75fr; gap: 28px; align-items: stretch; } }
+  .window { position: relative; border-radius: 20px; background: var(--surface); border: 1px solid var(--line); overflow: hidden; min-height: 380px; display: flex; flex-direction: column; }
+  .window .chrome { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--line); font: 12px/1 "Geist Mono", monospace; color: var(--text-3); }
+  .window .chrome i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); display: block; }
+  .window .chrome .url { flex: 1; margin-left: 6px; background: var(--surface-2); border-radius: 8px; padding: 6px 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .viewport { position: relative; flex: 1; padding: 18px 16px 18px 82px; display: grid; place-items: center; overflow: hidden; }
+  @media (min-width: 900px) { .viewport { padding-left: 96px; } }
+  .page { width: min(100%, 420px); border-radius: 14px; padding: 18px; transition: opacity .35s, transform .35s; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+  .page.swap { opacity: 0; transform: translateY(12px); }
+  .page h3 { margin: 0 0 8px; }
+  .page p, .page li { font-size: 14px; }
+  .page .meta { font: 500 11px/1 "Geist Mono", monospace; letter-spacing: .06em; margin-bottom: 10px; display: block; }
+  .bubble { position: absolute; left: 14px; top: 50%; translate: 0 -50%; width: 54px; padding: 7px; border-radius: 18px; background: rgba(20,19,15,.95);
+    border: 1px solid var(--line); display: grid; gap: 7px; justify-items: center; z-index: 3; box-shadow: 0 10px 24px rgba(0,0,0,.4); }
+  .bubble .shoot { width: 40px; height: 40px; border-radius: 12px; background: var(--copper); display: grid; place-items: center; }
+  .bubble .shoot.tap { animation: pulse .7s ease-out; }
+  .bubble .shoot svg { width: 20px; height: 20px; color: var(--on-copper); }
+  .bubble .count { font: 500 11px/1 "Geist Mono", monospace; color: var(--text); }
+  .flash { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; z-index: 4;
+    background: conic-gradient(from var(--angle), var(--a1), var(--a2), var(--a3), var(--a4), var(--a5), var(--a1)); animation: spin 2s linear infinite;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; padding: 3px; transition: opacity .25s; }
+  .flash.on { opacity: 1; }
+  .library { border-radius: 20px; background: #0E0D0B; border: 1px solid var(--line); padding: 16px; display: flex; flex-direction: column; gap: 12px; min-height: 260px; }
+  .library header { display: flex; justify-content: space-between; align-items: baseline; }
+  .library header b { font-size: 20px; letter-spacing: -.02em; }
+  .library header span { font: 12px/1 "Geist Mono", monospace; color: var(--text-3); }
+  .coll { font: 500 12px/1 "Geist Mono", monospace; color: var(--copper); }
+  .shelf { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .thumb { aspect-ratio: 3 / 4; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; position: relative; }
+  .thumb.fill::after { content: ""; position: absolute; inset: 14% 14% auto; height: 6px; border-radius: 3px; background: currentColor; opacity: .8;
+    box-shadow: 0 10px 0 rgba(0,0,0,.18), 0 18px 0 rgba(0,0,0,.18), 0 26px 0 rgba(0,0,0,.18); }
+  .flying { position: absolute; z-index: 10; border-radius: 10px; pointer-events: none; box-shadow: 0 12px 30px rgba(0,0,0,.5); }
+  .demo-note { color: var(--text-3); font-size: 14px; margin-top: 14px; }
+
+  /* ---------- Como funciona ---------- */
+  .steps { display: grid; gap: 14px; }
+  @media (min-width: 860px) { .steps { grid-template-columns: repeat(3, 1fr); } }
+  .step { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; }
+  .step .n { font: 500 13px/1 "Geist Mono", monospace; color: var(--copper); }
+  .step h3 { margin: 10px 0 6px; font-size: 21px; letter-spacing: -.01em; }
+  .step p { margin: 0; color: var(--text-2); }
+
+  /* ---------- Telas reais com parallax ---------- */
+  .showcase { display: grid; gap: 56px; }
+  .feature { display: grid; gap: 26px; align-items: center; }
+  @media (min-width: 900px) { .feature { grid-template-columns: 1fr 1fr; gap: 72px; } .feature.flip .shot-wrap { order: 2; } }
+  .shot-wrap { justify-self: center; position: relative; }
+  .shot { width: min(270px, 70vw); border-radius: 38px; background: #0E0D0B; padding: 8px; border: 1px solid var(--line); will-change: transform; }
+  .shot img { border-radius: 31px; width: 100%; }
+  .halo { position: absolute; inset: 10% -14%; border-radius: 50%; filter: blur(60px); opacity: .28; z-index: -1;
+    background: radial-gradient(circle, var(--a4), transparent 70%); }
+  .feature h3 { font-size: clamp(24px, 4.6vw, 34px); letter-spacing: -.02em; margin: 8px 0 10px; line-height: 1.15; }
+  .feature p { color: var(--text-2); margin: 0 0 14px; }
+  .ticks { list-style: none; padding: 0; margin: 0; display: grid; gap: 9px; }
+  .ticks li { display: flex; gap: 10px; }
+  .ticks li::before { content: "✓"; color: var(--ok); font-weight: 600; }
+
+  /* ---------- Números ---------- */
+  .stats { display: grid; gap: 12px; grid-template-columns: repeat(2, 1fr); }
+  @media (min-width: 860px) { .stats { grid-template-columns: repeat(4, 1fr); } }
+  .stat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }
+  .stat b { display: block; font-size: clamp(28px, 7vw, 42px); letter-spacing: -.03em; line-height: 1.1; }
+  .stat span { color: var(--text-2); font-size: 14px; }
+
+  /* ---------- Privacidade / CTA / rodapé ---------- */
+  .privacy { background: var(--surface); border: 1px solid var(--line); border-radius: 28px; padding: 26px; display: grid; gap: 20px; }
+  @media (min-width: 900px) { .privacy { grid-template-columns: 1fr 1fr; padding: 48px; gap: 40px; } }
+  .privacy p { color: var(--text-2); margin: 0; }
+  .final { text-align: center; padding: 88px 0 96px; overflow: hidden; }
+  .final h2 { max-width: 18ch; margin: 0 auto 14px; }
+  .final p { color: var(--text-2); margin: 0 auto 28px; max-width: 46ch; }
+  .final .cta-row { justify-content: center; }
+  footer { border-top: 1px solid var(--line); padding: 28px 0 calc(40px + env(safe-area-inset-bottom)); color: var(--text-3); font-size: 14px; }
+  footer .wrap { display: grid; gap: 10px; }
+  @media (min-width: 860px) { footer .wrap { grid-template-columns: 1fr auto; align-items: center; } }
+  footer a { color: var(--text-2); }
+
+  /* Entrada suave ao rolar */
+  .reveal { opacity: 0; transform: translateY(24px); transition: opacity .7s ease, transform .7s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    .reveal { opacity: 1; transform: none; }
+    html { scroll-behavior: auto; }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/><path d="M9 7.5h7"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3c2.6 2.8 3.8 5.8 3.8 9s-1.2 6.2-3.8 9c-2.6-2.8-3.8-5.8-3.8-9S9.4 5.8 12 3z"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H6.5A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V8z"/><path d="M14 3v5h5"/><path d="M8.5 13h7M8.5 16.5h5"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path d="m8 8-4 4 4 4"/><path d="m16 8 4 4-4 4"/><path d="m13.5 5-3 14"/></symbol>
+    <symbol id="i-news" viewBox="0 0 24 24"><path d="M4 5h13v14a2 2 0 0 0 2 2H6a2 2 0 0 1-2-2z"/><path d="M17 9h3v10a2 2 0 0 1-2 2"/><path d="M7.5 9h6M7.5 12.5h6M7.5 16h4"/></symbol>
+    <symbol id="i-pot" viewBox="0 0 24 24"><path d="M4 11h16v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M2 11h20"/><path d="M9 4.5c0 1.5 1 1.5 1 3M13 3.5c0 1.5 1 1.5 1 3"/></symbol>
+    <symbol id="i-cap" viewBox="0 0 24 24"><path d="M2 9.5 12 5l10 4.5-10 4.5z"/><path d="M6 11.5V16c0 1.5 2.7 3 6 3s6-1.5 6-3v-4.5"/><path d="M22 9.5V15"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="10" r="1.8"/><path d="m21 16-5-5-9 9"/></symbol>
+  </defs>
+</svg>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#topo"><img src="assets/icon.png" alt="" width="30" height="30">print-book</a>
+    <nav aria-label="Seções">
+      <a href="#demo">Demo</a>
+      <a href="#como-funciona">Como funciona</a>
+      <a href="#recursos">Recursos</a>
+      <a href="#privacidade">Privacidade</a>
+    </nav>
+    <a class="btn btn-ghost btn-sm" href="https://github.com/Carloseduardo-dev/print-book">GitHub</a>
+  </div>
+</header>
+
+<main id="topo">
+  <!-- HERO -->
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <span class="eyebrow"><span class="dot"></span>Organizador pessoal · 100% offline</span>
+        <h1>Guarde o que importa. <span class="grad">Leia onde estiver.</span></h1>
+        <div class="lede">
+          <span class="rotator" aria-live="polite">
+            <span class="on">A receita da família</span><span>A documentação do trabalho</span><span>A página do livro</span><span>O artigo para ler com calma</span><span>As suas referências</span>
+          </span>
+          viram páginas organizadas, pesquisáveis e disponíveis sem internet.
+        </div>
+        <div class="cta-row">
+          <a class="btn btn-primary aura" href="#avise">Em breve na Google Play <span class="badge-soon">Android</span></a>
+          <a class="btn btn-ghost" href="#demo">Ver a demo</a>
+        </div>
+      </div>
+
+      <div class="stage" id="stage" aria-hidden="true">
+        <div class="phone aura glow" data-depth="10" style="--w:3px">
+          <img src="assets/07-captura-aura.png" alt="" width="540" height="1170">
+        </div>
+        <div class="float p-recipe" data-depth="34">
+          <div class="src s-recipe"><span class="tag">receita</span><h4>Bolo de cenoura da vó</h4><ul><li>3 cenouras médias</li><li>4 ovos</li><li>2 xíc. de açúcar</li><li>cobertura de chocolate</li></ul></div>
+        </div>
+        <div class="float p-doc" data-depth="26">
+          <div class="src s-doc"><span class="tag">documentação</span><div class="bar"><i></i><i></i><i></i><b>docs / coroutines</b></div><pre><span class="c">// abre a página e guarda</span>
+<span class="k">val</span> page = <span class="f">capture</span>()
+<span class="k">launch</span> {
+  library.<span class="f">save</span>(page)
+}</pre></div>
+        </div>
+        <div class="float p-article" data-depth="40">
+          <div class="src s-article"><span class="tag">artigo</span><div class="img"></div><h4>Por que lemos melhor quando desconectamos</h4><p>Um estudo sobre atenção, leitura longa e o celular no modo avião.</p></div>
+        </div>
+        <div class="float p-book" data-depth="22">
+          <div class="src s-book"><span class="tag">livro</span><small>CAPÍTULO 3</small><span class="drop">Q</span>uando o sinal some, a leitura continua. A página que você guardou está ali, do jeito que estava.</div>
+        </div>
+        <div class="float p-catalog" data-depth="48">
+          <div class="src s-catalog"><span class="tag">catálogo</span><i></i><i></i><i></i><i></i></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LETREIRO DE FONTES -->
+  <div class="marquee" aria-label="Onde o print-book funciona">
+    <div class="track">
+      <span class="pill"><svg class="ic"><use href="#i-book"/></svg>Apps de leitura</span><span class="pill"><svg class="ic"><use href="#i-globe"/></svg>Navegador</span><span class="pill"><svg class="ic"><use href="#i-file"/></svg>PDFs</span><span class="pill"><svg class="ic"><use href="#i-code"/></svg>Documentações</span>
+      <span class="pill"><svg class="ic"><use href="#i-news"/></svg>Blogs e artigos</span><span class="pill"><svg class="ic"><use href="#i-pot"/></svg>Sites de receitas</span><span class="pill"><svg class="ic"><use href="#i-cap"/></svg>Materiais de estudo</span><span class="pill"><svg class="ic"><use href="#i-image"/></svg>Galerias e catálogos</span>
+      <span class="pill" aria-hidden="true"><svg class="ic"><use href="#i-book"/></svg>Apps de leitura</span><span class="pill" aria-hidden="true"><svg class="ic"><use href="#i-globe"/></svg>Navegador</span><span class="pill" aria-hidden="true"><svg class="ic"><use href="#i-file"/></svg>PDFs</span><span class="pill" aria-hidden="true"><svg class="ic"><use href="#i-code"/></svg>Documentações</span>
+      <span class="pill" aria-hidden="true"><svg class="ic"><use href="#i-news"/></svg>Blogs e artigos</span><span class="pill" aria-hidden="true"><svg class="ic"><use href="#i-pot"/></svg>Sites de receitas</span><span class="pill" aria-hidden="true"><svg class="ic"><use href="#i-cap"/></svg>Materiais de estudo</span><span class="pill" aria-hidden="true"><svg class="ic"><use href="#i-image"/></svg>Galerias e catálogos</span>
+    </div>
+  </div>
+
+  <!-- DEMO -->
+  <section id="demo">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="kicker">viu, gostou, guardou</span>
+        <h2>Veja o print-book guardando</h2>
+        <p>Escolha o que guardar. A bolha flutua sobre o app em que você está, um toque captura a página e ela já entra organizada na sua biblioteca.</p>
+      </div>
+      <div class="tabs" role="tablist" aria-label="Tipo de conteúdo">
+        <button class="tab" role="tab" data-src="recipe" aria-selected="true"><svg class="ic"><use href="#i-pot"/></svg>Receita</button>
+        <button class="tab" role="tab" data-src="doc" aria-selected="false"><svg class="ic"><use href="#i-code"/></svg>Documentação</button>
+        <button class="tab" role="tab" data-src="article" aria-selected="false"><svg class="ic"><use href="#i-news"/></svg>Artigo</button>
+        <button class="tab" role="tab" data-src="book" aria-selected="false"><svg class="ic"><use href="#i-book"/></svg>Livro</button>
+        <button class="tab" role="tab" data-src="catalog" aria-selected="false"><svg class="ic"><use href="#i-image"/></svg>Catálogo</button>
+      </div>
+      <div class="demo reveal" id="demoBox">
+        <div class="window">
+          <div class="chrome"><i></i><i></i><i></i><span class="url" id="demoUrl">receitasdafamilia.com.br/bolo-de-cenoura</span></div>
+          <div class="viewport" id="viewport">
+            <div class="bubble" aria-hidden="true">
+              <div class="shoot" id="shoot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 8V5h3M20 8V5h-3M4 16v3h3M20 16v3h-3"/><circle cx="12" cy="12" r="3"/></svg></div>
+              <span class="count" id="count">0</span>
+            </div>
+            <div class="page" id="demoPage"></div>
+            <div class="flash" id="flash"></div>
+          </div>
+        </div>
+        <div class="library" aria-label="Biblioteca do print-book (demonstração)">
+          <header><b>Biblioteca</b><span id="libCount">0 páginas</span></header>
+          <span class="coll" id="libColl">Coleção · Receitas</span>
+          <div class="shelf" id="shelf"></div>
+          <span class="demo-note">Busca no texto, capa, favoritos e leitura offline: tudo pronto assim que a página entra.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMO FUNCIONA -->
+  <section id="como-funciona">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="kicker">três passos</span>
+        <h2>Guardar leva só um toque</h2>
+        <p>Você continua no app em que está. O print-book trabalha numa bolha discreta por cima dele.</p>
+      </div>
+      <div class="steps">
+        <div class="step reveal"><span class="n">01</span><h3>Abra o conteúdo</h3><p>Em qualquer app que permita captura de tela: o leitor, o navegador, o PDF.</p></div>
+        <div class="step reveal"><span class="n">02</span><h3>Toque na bolha</h3><p>A página é guardada na hora. No modo semiautomático, é só ir virando: o app captura sozinho quando a tela para.</p></div>
+        <div class="step reveal"><span class="n">03</span><h3>Leia e encontre</h3><p>Tudo organizado em coleções, com busca pelo texto e leitura confortável, mesmo offline.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RECURSOS COM TELAS REAIS -->
+  <section id="recursos">
+    <div class="wrap showcase">
+      <div class="feature">
+        <div class="shot-wrap"><div class="halo"></div><div class="shot" data-speed="-0.06"><img src="assets/03-busca.png" alt="Busca no texto das páginas capturadas" width="540" height="1170" loading="lazy"></div></div>
+        <div class="reveal">
+          <span class="kicker">busca no texto</span>
+          <h3>Encontre qualquer palavra, em qualquer página</h3>
+          <p>O texto das suas capturas é reconhecido no próprio aparelho, sem internet. Digite "aproximacao" e o print-book encontra "aproximação".</p>
+          <ul class="ticks"><li>Busca em todas as coleções ou em uma só</li><li>Ignora acentos e maiúsculas</li><li>Vai direto à página do resultado</li></ul>
+        </div>
+      </div>
+      <div class="feature flip">
+        <div class="shot-wrap"><div class="halo" style="background: radial-gradient(circle, var(--a1), transparent 70%)"></div><div class="shot" data-speed="-0.08"><img src="assets/02-biblioteca.png" alt="Biblioteca com coleções, capas e progresso de leitura" width="540" height="1170" loading="lazy"></div></div>
+        <div class="reveal">
+          <span class="kicker">organização</span>
+          <h3>Coleções do seu jeito</h3>
+          <p>Cada captura vira um print-book com capa, progresso e lugar certo na sua biblioteca.</p>
+          <ul class="ticks"><li>Coleções, favoritos e marcadores</li><li>Capa da galeria ou de uma página</li><li>Revise e exclua uma captura ruim na hora</li></ul>
+        </div>
+      </div>
+      <div class="feature">
+        <div class="shot-wrap"><div class="halo" style="background: radial-gradient(circle, var(--a5), transparent 70%)"></div><div class="shot" data-speed="-0.06"><img src="assets/05-leitor.png" alt="Leitor com página aberta e barra de progresso" width="540" height="1170" loading="lazy"></div></div>
+        <div class="reveal">
+          <span class="kicker">leitura confortável</span>
+          <h3>Feito para ler, não só para guardar</h3>
+          <p>A interface se recolhe para dar espaço ao conteúdo, e você retoma de onde parou.</p>
+          <ul class="ticks"><li>Zoom por pinça e duplo toque</li><li>Modos noturno, sépia e escurecido</li><li>Prévia da página ao arrastar a barra de progresso</li></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- NÚMEROS -->
+  <section>
+    <div class="wrap">
+      <div class="stats">
+        <div class="stat reveal"><b><span data-count="100">0</span>%</b><span>offline depois de guardar</span></div>
+        <div class="stat reveal"><b>Turbo</b><span>captura assim que a página para</span></div>
+        <div class="stat reveal"><b>−<span data-count="70">0</span>%</b><span>de espaço no modo Texto, sem perder nitidez</span></div>
+        <div class="stat reveal"><b><span data-count="0">0</span></b><span>contas, servidores ou anúncios</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRIVACIDADE -->
+  <section id="privacidade">
+    <div class="wrap">
+      <div class="privacy reveal">
+        <div>
+          <span class="kicker">privacidade de verdade</span>
+          <h2>O que é seu fica com você</h2>
+        </div>
+        <div style="display:grid;gap:14px">
+          <p>Tudo fica no seu aparelho: sem conta, sem servidor e sem nuvem. As capturas ficam dentro do app, fora da galeria, e podem ser apagadas a qualquer momento.</p>
+          <p>O print-book é um organizador pessoal para conteúdos aos quais você já tem acesso. Ele guarda apenas o que aparece na sua tela, respeita os apps que bloqueiam captura e não contorna nenhuma proteção.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA FINAL -->
+  <section class="final" id="avise">
+    <div class="wrap reveal">
+      <h2>Não deixe passar um conteúdo especial.</h2>
+      <p>O print-book está chegando à Google Play. Enquanto isso, acompanhe o projeto no GitHub.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary aura" href="https://github.com/Carloseduardo-dev/print-book">Acompanhar no GitHub</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>print-book · feito por <a href="https://github.com/Carloseduardo-dev">Carlos Eduardo Ferreira</a></span>
+    <span>Uso pessoal. Respeite os direitos autorais e os termos de cada serviço.</span>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* Frase do hero que alterna o tipo de conteúdo */
+  const rot = [...document.querySelectorAll('.rotator span')];
+  let ri = 0;
+  if (!reduce) setInterval(() => {
+    const old = rot[ri]; old.classList.remove('on'); old.classList.add('out');
+    setTimeout(() => old.classList.remove('out'), 460);
+    ri = (ri + 1) % rot.length; rot[ri].classList.add('on');
+  }, 2400);
+
+  /* Parallax: cartões do hero seguem o dedo/mouse; telas reais acompanham a rolagem */
+  const stage = document.getElementById('stage');
+  const layers = [...stage.querySelectorAll('[data-depth]')];
+  let px = 0, py = 0, sy = 0, tick = false;
+  const shots = [...document.querySelectorAll('[data-speed]')];
+  function render() {
+    tick = false;
+    const r = stage.getBoundingClientRect();
+    const inView = r.bottom > 0 && r.top < innerHeight;
+    if (inView) {
+      const scrollShift = Math.max(-1, Math.min(1, (r.top + r.height / 2 - innerHeight / 2) / innerHeight));
+      layers.forEach(el => {
+        const d = +el.dataset.depth;
+        const x = px * d, y = py * d + scrollShift * d * 1.6;
+        el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+      });
+    }
+    shots.forEach(el => {
+      const b = el.getBoundingClientRect();
+      const off = (b.top + b.height / 2 - innerHeight / 2) * +el.dataset.speed;
+      el.style.transform = `translate3d(0, ${off}px, 0) rotate(${off * -0.02}deg)`;
+    });
+  }
+  function ask() { if (!tick) { tick = true; requestAnimationFrame(render); } }
+  if (!reduce) {
+    addEventListener('scroll', ask, { passive: true });
+    addEventListener('pointermove', e => { px = (e.clientX / innerWidth - .5); py = (e.clientY / innerHeight - .5); ask(); }, { passive: true });
+    addEventListener('deviceorientation', e => {
+      if (e.gamma == null) return;
+      px = Math.max(-.5, Math.min(.5, e.gamma / 60)); py = Math.max(-.5, Math.min(.5, (e.beta - 45) / 90)); ask();
+    }, { passive: true });
+    render();
+  }
+
+  /* Entrada ao rolar + números contando */
+  const io = new IntersectionObserver(entries => entries.forEach(en => {
+    if (!en.isIntersecting) return;
+    en.target.classList.add('in');
+    en.target.querySelectorAll('[data-count]').forEach(n => {
+      const end = +n.dataset.count; if (reduce || end === 0) { n.textContent = end; return; }
+      const t0 = performance.now();
+      const step = t => { const p = Math.min(1, (t - t0) / 1100); n.textContent = Math.round(end * (1 - Math.pow(1 - p, 3))); if (p < 1) requestAnimationFrame(step); };
+      requestAnimationFrame(step);
+    });
+    io.unobserve(en.target);
+  }), { threshold: .18 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+  /* ---------- Demo ao vivo ---------- */
+  const SOURCES = {
+    recipe: { url: 'receitasdafamilia.com.br/bolo-de-cenoura', coll: 'Receitas', color: '#B0602C', pages: [
+      `<div style="background:#FFF6E6;color:#3B2A1A"><span class="meta" style="color:#B0602C">RECEITA · 8 PORÇÕES</span><h3 style="font:600 34px/1 Caveat,cursive;color:#B0602C">Bolo de cenoura da vó</h3><ul style="margin:0;padding-left:18px"><li>3 cenouras médias</li><li>4 ovos e 1 xícara de óleo</li><li>2 xícaras de açúcar e 2½ de farinha</li></ul></div>`,
+      `<div style="background:#FFF6E6;color:#3B2A1A"><span class="meta" style="color:#B0602C">MODO DE PREPARO</span><h3 style="font:600 30px/1 Caveat,cursive;color:#B0602C">Cobertura de chocolate</h3><p style="margin:0">Leve ao fogo 4 colheres de chocolate, 1 de manteiga e ½ xícara de leite, mexendo até engrossar. Espalhe ainda quente.</p></div>` ] },
+    doc: { url: 'developer.android.com/kotlin/coroutines', coll: 'Estudos · Kotlin', color: '#9C82E8', pages: [
+      `<div style="background:#0F1117;color:#C9D1D9;font:13px/1.6 'Geist Mono',monospace"><span class="meta" style="color:#7D8590">DOCS · COROUTINES</span><h3 style="font:600 18px/1.3 Geist,sans-serif;color:#E6EDF3">Lançando uma corrotina</h3><pre style="margin:0;white-space:pre-wrap"><span class="k">val</span> job = scope.<span class="f">launch</span> {\n  <span class="k">val</span> page = <span class="f">capture</span>()\n  library.<span class="f">save</span>(page)\n}</pre></div>`,
+      `<div style="background:#0F1117;color:#C9D1D9;font:13px/1.6 'Geist Mono',monospace"><span class="meta" style="color:#7D8590">DOCS · FLOW</span><h3 style="font:600 18px/1.3 Geist,sans-serif;color:#E6EDF3">Coletando um Flow</h3><pre style="margin:0;white-space:pre-wrap">pages.<span class="f">collect</span> { page -&gt;\n  <span class="f">println</span>(<span class="st">"salva: \${page.id}"</span>)\n}</pre></div>` ] },
+    article: { url: 'revista.exemplo.com/leitura-offline', coll: 'Para ler depois', color: '#5FB59E', pages: [
+      `<div style="background:#fff;color:#111"><div style="height:90px;border-radius:10px;margin-bottom:12px;background:linear-gradient(135deg,#5FB59E,#9C82E8 60%,#E07A8A)"></div><h3 style="font:600 24px/1.15 Newsreader,serif">Por que lemos melhor quando desconectamos</h3><p style="margin:0;color:#555">Pesquisadores observaram que a leitura longa rende mais longe das notificações.</p></div>`,
+      `<div style="background:#fff;color:#111"><span class="meta" style="color:#5FB59E">CONTINUAÇÃO</span><h3 style="font:italic 500 22px/1.2 Newsreader,serif">“O modo avião virou o meu marcador de página.”</h3><p style="margin:0;color:#555">Guardar o texto antes da viagem transformou o voo em tempo de leitura.</p></div>` ] },
+    book: { url: 'Leitor de livros · Capítulo 3', coll: 'Leitura', color: '#E0A040', pages: [
+      `<div style="background:#F6F0E4;color:#2A251E;font:15px/1.6 Newsreader,serif"><span class="meta" style="color:#B0602C">CAPÍTULO 3</span><h3 style="font:600 26px/1.1 Newsreader,serif">Quando a conexão acaba</h3><p style="margin:0">Há lugares onde o sinal simplesmente não chega: a estrada da serra, a cabine do avião, a praia escondida.</p></div>`,
+      `<div style="background:#F6F0E4;color:#2A251E;font:15px/1.6 Newsreader,serif"><span class="meta" style="color:#B0602C">CAPÍTULO 3 · CONT.</span><p style="margin:0">São justamente os lugares onde, enfim, sobra tempo para ler. A página guardada está ali, do jeito que estava.</p></div>` ] },
+    catalog: { url: 'galeria.exemplo.com/inspiracoes', coll: 'Inspirações', color: '#E07A8A', pages: [
+      `<div style="background:#1D1B16;color:#ECE5D6"><span class="meta" style="color:#E07A8A">CATÁLOGO · PALETAS</span><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"><i style="aspect-ratio:1;border-radius:10px;background:linear-gradient(135deg,#F2BE5C,#D58E55)"></i><i style="aspect-ratio:1;border-radius:10px;background:linear-gradient(135deg,#5FB59E,#2E6B5E)"></i><i style="aspect-ratio:1;border-radius:10px;background:linear-gradient(135deg,#9C82E8,#5B47A8)"></i></div></div>`,
+      `<div style="background:#1D1B16;color:#ECE5D6"><span class="meta" style="color:#E07A8A">CATÁLOGO · TEXTURAS</span><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"><i style="aspect-ratio:1;border-radius:10px;background:linear-gradient(135deg,#E07A8A,#A0445A)"></i><i style="aspect-ratio:1;border-radius:10px;background:repeating-linear-gradient(45deg,#26231D 0 6px,#34302A 6px 12px)"></i><i style="aspect-ratio:1;border-radius:10px;background:radial-gradient(circle,#F2BE5C,#3A2A1C)"></i></div></div>` ] },
+  };
+  const order = Object.keys(SOURCES);
+  const box = document.getElementById('demoBox'), pageEl = document.getElementById('demoPage');
+  const urlEl = document.getElementById('demoUrl'), shoot = document.getElementById('shoot'), flash = document.getElementById('flash');
+  const countEl = document.getElementById('count'), libCount = document.getElementById('libCount'), libColl = document.getElementById('libColl');
+  const shelf = document.getElementById('shelf'), tabs = [...document.querySelectorAll('.tab')];
+  const SLOTS = 8;
+  let cur = 'recipe', pi = 0, total = 0, timer = null, userPicked = false, visible = false;
+
+  function buildShelf() { shelf.innerHTML = ''; for (let i = 0; i < SLOTS; i++) { const t = document.createElement('div'); t.className = 'thumb'; shelf.appendChild(t); } }
+  function showPage(i) {
+    const src = SOURCES[cur];
+    pageEl.classList.add('swap');
+    setTimeout(() => { pageEl.innerHTML = src.pages[i % src.pages.length]; const inner = pageEl.firstElementChild;
+      pageEl.style.background = inner.style.background; pageEl.style.color = inner.style.color; pageEl.classList.remove('swap'); }, reduce ? 0 : 260);
+  }
+  function select(key, byUser) {
+    cur = key; pi = 0; userPicked = userPicked || byUser;
+    tabs.forEach(t => t.setAttribute('aria-selected', String(t.dataset.src === key)));
+    urlEl.textContent = SOURCES[key].url; libColl.textContent = 'Coleção · ' + SOURCES[key].coll;
+    showPage(0);
+  }
+  function capture() {
+    const src = SOURCES[cur];
+    shoot.classList.remove('tap'); void shoot.offsetWidth; shoot.classList.add('tap');
+    flash.classList.add('on'); setTimeout(() => flash.classList.remove('on'), 700);
+    const slot = shelf.children[total % SLOTS];
+    if (total % SLOTS === 0 && total > 0) [...shelf.children].forEach(t => { t.classList.remove('fill'); t.style.background = ''; });
+    const from = pageEl.getBoundingClientRect(), to = slot.getBoundingClientRect(), base = box.getBoundingClientRect();
+    const fly = document.createElement('div'); fly.className = 'flying';
+    fly.style.background = pageEl.style.background || '#fff';
+    fly.style.overflow = 'hidden'; fly.style.padding = '18px';
+    fly.innerHTML = pageEl.innerHTML;
+    Object.assign(fly.style, { left: (from.left - base.left) + 'px', top: (from.top - base.top) + 'px', width: from.width + 'px', height: from.height + 'px' });
+    fly.style.transformOrigin = 'top left';
+    box.appendChild(fly);
+    const done = () => { fly.remove(); slot.classList.add('fill'); slot.style.background = pageEl.style.background; slot.style.color = src.color;
+      total++; countEl.textContent = total; libCount.textContent = total + (total === 1 ? ' página' : ' páginas'); };
+    if (reduce || !fly.animate) { done(); return; }
+    fly.animate([
+      { transform: 'none', opacity: 1 },
+      { transform: `translate(${to.left - from.left}px, ${to.top - from.top}px) scale(${to.width / from.width}, ${to.height / from.height})`, opacity: .9 },
+    ], { duration: 820, easing: 'cubic-bezier(.6,.05,.3,1)', fill: 'forwards' });
+    setTimeout(done, 840);
+  }
+  function cycle() {
+    capture();
+    setTimeout(() => {
+      pi++;
+      if (pi >= SOURCES[cur].pages.length && !userPicked) { const next = order[(order.indexOf(cur) + 1) % order.length]; select(next, false); }
+      else showPage(pi);
+    }, 1100);
+  }
+  function start() { if (timer || reduce) return; timer = setInterval(cycle, 2600); }
+  function stop() { clearInterval(timer); timer = null; }
+
+  buildShelf(); select('recipe', false);
+  tabs.forEach(t => t.addEventListener('click', () => { select(t.dataset.src, true); stop(); setTimeout(() => { cycle(); if (visible) start(); }, 500); }));
+  new IntersectionObserver(([e]) => { visible = e.isIntersecting; visible ? start() : stop(); }, { threshold: .3 }).observe(box);
+  if (reduce) { for (let i = 0; i < 3; i++) { const s = shelf.children[i]; s.classList.add('fill'); s.style.background = '#FFF6E6'; s.style.color = '#B0602C'; } countEl.textContent = 3; libCount.textContent = '3 páginas'; }
+})();
+</script>
+</body>
+</html>
