@@ -1,0 +1,13 @@
+{
+  "name": "print-book",
+  "short_name": "print-book",
+  "description": "Guarde o que importa. Leia onde estiver.",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "theme_color": "#14130F",
+  "background_color": "#14130F",
+  "display": "standalone",
+  "start_url": "/"
+}

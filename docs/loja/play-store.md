@@ -81,9 +81,12 @@ Não deixe passar um conteúdo especial. Guarde no print-book.
 
 **Categoria:** Produtividade (alternativa: Livros e referências).
 
+**Política de privacidade (obrigatória no Play Console):** `https://<domínio-na-vercel>/privacidade` (página em `site/privacidade.html`).
+
 **Segurança dos dados (Data safety):**
-- Nenhum dado é coletado nem compartilhado; tudo fica no aparelho.
-- A permissão INTERNET vem do ML Kit (OCR embutido). Nenhuma função depende de rede.
+- O conteúdo do usuário (capturas, texto do OCR, coleções) **não é coletado**: fica só no aparelho, fora do backup e da transferência entre aparelhos.
+- **Atenção:** o ML Kit (OCR embutido) envia ao Google **diagnósticos técnicos** (dados do aparelho e do app, desempenho, erros e um identificador por instalação), criptografados em trânsito e não compartilhados com terceiros ([divulgação do Google](https://developers.google.com/ml-kit/android-data-disclosure)). No formulário, declarar em **"Informações e desempenho do app" → "Diagnóstico"**: coletado, não compartilhado, criptografado em trânsito, finalidade "Análise/diagnóstico". A decisão final sobre o formulário é do desenvolvedor.
+- A permissão INTERNET existe por causa do ML Kit. Nenhuma função depende de rede.
 
 **Permissões e declarações:**
 - *Captura de tela (MediaProjection):* consentimento do sistema a cada sessão; serviço em primeiro plano do tipo `mediaProjection` com notificação.

@@ -313,6 +313,8 @@ No Android Studio, escolha a variante em **View → Tool Windows → Build Varia
 
 ## Privacidade e uso responsável
 
+Política de privacidade completa: [`site/privacidade.html`](site/privacidade.html) (publicada junto com o site).
+
 - O print-book captura **apenas o que já está visível na tela**, a partir de conteúdo ao qual o usuário tem acesso legítimo, para leitura pessoal offline.
 - **Nunca contorna proteções:** se um aplicativo bloqueia capturas de tela (`FLAG_SECURE`), o print-book detecta a tela preta, avisa e interrompe.
 - As páginas ficam **somente no aparelho**: fora da galeria, fora do backup em nuvem, sem conta e sem servidor.
