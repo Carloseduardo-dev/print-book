@@ -11,11 +11,17 @@ Um organizador pessoal para Android que transforma o que você vê na tela em co
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/compose)
 [![Android](https://img.shields.io/badge/Android-11%2B%20·%20API%2030-3DDC84?logo=android&logoColor=white)](#começando)
-[![Tests](https://img.shields.io/badge/testes%20unitários-65%20passando-4E7A4B)](#qualidade)
+[![Tests](https://img.shields.io/badge/testes%20unitários-159%20passando-4E7A4B)](#qualidade)
 [![Offline](https://img.shields.io/badge/funciona-100%25%20offline-B0602C)](#privacidade-e-uso-responsável)
 [![Site](https://img.shields.io/badge/site-print--book--site.vercel.app-1C1A16)](https://print-book-site.vercel.app)
 
 <img src="docs/screenshots/banner.png" alt="Telas do print-book: início, biblioteca, leitor, busca no texto e captura com a aura" />
+
+### Veja em ação
+
+<img src="docs/screenshots/demo.gif" width="720" alt="Demonstração do print-book: a bolha captura receitas, documentações, artigos, livros e catálogos, e cada página entra organizada na biblioteca" />
+
+<sub>A bolha captura a página e ela já entra organizada na biblioteca: receitas, documentações, artigos, livros e catálogos. Demonstração interativa em <a href="https://print-book-site.vercel.app/#demo">print-book-site.vercel.app</a>.</sub>
 
 </div>
 
