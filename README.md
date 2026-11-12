@@ -75,7 +75,7 @@ O **print-book** reúne tudo num só lugar. Ele captura o que aparece na tela de
 |---|---|
 | **Captura automática + Turbo** | Vira as páginas sozinho e para no fim do livro. No modo Turbo, **100 páginas em cerca de 2 minutos** (~1,2 s por página), com progresso e tempo restante. |
 | **Busca no texto, offline** | OCR no próprio aparelho + índice FTS4 que ignora acentos ("aproximacao" encontra "aproximação"). |
-| **Revisão na hora** | A bolha mostra a última captura; um toque abre a faixa de miniaturas para conferir e excluir uma página ruim sem sair do app de leitura. |
+| **Revisão na hora** | A bolha mostra a última captura; um toque abre a faixa de miniaturas para conferir e excluir uma página ruim sem sair do app em que você está. |
 | **Precisão medida** | **200/200 páginas** capturadas sem perda ou duplicata em teste real; **482/482** páginas indexadas sem falha. |
 | **Arquitetura limpa** | Single-Activity, MVVM, Hilt, Room, WorkManager; lógica de imagem em **funções puras testadas na JVM**. |
 | **Ético por construção** | Respeita `FLAG_SECURE`; automação isolada numa variante de build que nem entra no APK publicável. |
@@ -136,7 +136,7 @@ O **print-book** reúne tudo num só lugar. Ele captura o que aparece na tela de
 ```mermaid
 sequenceDiagram
     autonumber
-    participant U as Leitor
+    participant U as Usuário
     participant B as Bolha (overlay)
     participant S as CaptureService
     participant P as MediaProjection
@@ -308,7 +308,7 @@ No Android Studio, escolha a variante em **View → Tool Windows → Build Varia
 - [ ] Leitura em voz alta sobre o texto reconhecido
 - [ ] Publicação da edição para lojas
 
-**Visão:** um "modo viagem" para leitura offline tem espaço para virar parceria com as próprias plataformas de leitura, de forma oficial e licenciada, ampliando o acesso de quem lê.
+**Visão:** ser o lugar pessoal para guardar o que importa (livros, artigos, receitas, documentações e referências) e ler em qualquer lugar. O "modo offline" também tem espaço para virar parceria oficial e licenciada com plataformas de conteúdo, ampliando o acesso de quem lê e estuda.
 
 ---
 
@@ -316,13 +316,13 @@ No Android Studio, escolha a variante em **View → Tool Windows → Build Varia
 
 Política de privacidade completa: [print-book-site.vercel.app/privacidade](https://print-book-site.vercel.app/privacidade).
 
-- O print-book captura **apenas o que já está visível na tela**, a partir de conteúdo ao qual o usuário tem acesso legítimo, para leitura pessoal offline.
+- O print-book captura **apenas o que já está visível na tela**, a partir de conteúdo ao qual o usuário tem acesso legítimo, para uso pessoal.
 - **Nunca contorna proteções:** se um aplicativo bloqueia capturas de tela (`FLAG_SECURE`), o print-book detecta a tela preta, avisa e interrompe.
 - As páginas ficam **somente no aparelho**: fora da galeria, fora do backup em nuvem, sem conta e sem servidor.
-- O usuário pode apagar qualquer livro a qualquer momento. A recomendação é remover as capturas quando o acesso à internet voltar.
+- O usuário pode apagar qualquer página ou print-book a qualquer momento. Para conteúdos de serviços por assinatura, a recomendação é remover as capturas quando o acesso à internet voltar.
 - O serviço de Acessibilidade, presente só na edição completa, apenas executa gestos de virar página e identifica qual app está em primeiro plano. Ele **não lê** o conteúdo das telas.
 
-O projeto não tem vínculo com nenhuma plataforma de leitura. Marcas citadas no código pertencem aos respectivos titulares.
+O projeto não tem vínculo com nenhuma plataforma de leitura ou de conteúdo. Marcas citadas no código pertencem aos respectivos titulares.
 
 ---
 

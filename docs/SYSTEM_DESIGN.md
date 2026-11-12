@@ -1,4 +1,4 @@
-# print-book: System Design
+"# print-book: System Design
 
 > Versão 1.0, 2026-11-10
 > Fontes: `reports/Viabilidade app print book.md` (viabilidade) e testes no aparelho (Galaxy A56, Android 17 / API 37, 1080×2340).
@@ -8,7 +8,9 @@
 
 ## 0. Resumo executivo
 
-O print-book captura, com o consentimento do usuário, as páginas que um app de leitura exibe na tela. Ele organiza essas capturas em "print-books" e oferece uma experiência de leitura offline, com estante, leitor com zoom, favoritos, coleções, edição de páginas e, mais tarde, busca por OCR.
+O print-book captura, com o consentimento do usuário, o que um app exibe na tela: páginas de livros em apps de leitura, artigos, receitas, documentações, tutoriais e outras referências. Ele organiza essas capturas em "print-books" e oferece uma experiência de leitura offline, com estante, leitor com zoom, favoritos, coleções, edição de páginas e busca por OCR.
+
+**Posicionamento (atualizado em 2026-11-11):** "Guarde o que importa. Leia onde estiver." O print-book é um organizador pessoal de conteúdo, e os apps de leitura são um dos usos, não o único. Este documento nasceu focado nos leitores (Kindle, Play Livros, Minha Biblioteca), e as decisões técnicas abaixo continuam valendo para qualquer app que permita captura de tela; o perfil "Site ou outro app" cobre navegador, PDFs e demais fontes.
 
 **Premissa validada no aparelho:** Kindle, Play Livros e Minha Biblioteca **não** definem `FLAG_SECURE` nas páginas do Galaxy A56, então a captura via MediaProjection funciona. Isso corresponde ao cenário A do relatório de viabilidade: o roadmap completo é viável.
 
