@@ -137,6 +137,6 @@ class CaptureViewModel @Inject constructor(
     }
 
     fun dismissResult() = stateHolder.update {
-        it.copy(config = null, interrupted = false, captured = 0, duplicatesSkipped = 0, autoStopMessage = null)
+        it.copy(config = null, interrupted = false, captured = 0, duplicatesSkipped = 0, autoStopMessage = null, missingPages = emptyList())
     }
 }

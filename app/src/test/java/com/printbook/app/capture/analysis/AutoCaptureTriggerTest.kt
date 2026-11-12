@@ -103,4 +103,18 @@ class AutoCaptureTriggerTest {
         assertThat(step(1).meanAbsDiff(step(0))).isLessThan(0.6)
         assertThat(step(4).meanAbsDiff(step(0))).isGreaterThan(0.6)
     }
+
+    @Test
+    fun `quadro travado no meio da virada so dispara quando a tela muda de verdade`() {
+        // Revisão: com a referência antiga, o mesmo quadro travado disparava de novo em ~240 ms.
+        val t = AutoCaptureTrigger()
+        t.feed(pageA, pageA, pageA, pageA) // referência = página antes da virada
+        val midTurn = anim
+        assertThat(t.feed(midTurn, midTurn, midTurn, midTurn).count { it }).isEqualTo(1) // "estável" no meio
+        t.rejectSettled(midTurn)
+        // Continua travado: não dispara.
+        assertThat(t.feed(midTurn, midTurn, midTurn, midTurn, midTurn, midTurn)).doesNotContain(true)
+        // A virada termina: dispara uma vez na página nova.
+        assertThat(t.feed(pageB, pageB, pageB, pageB, pageB).count { it }).isEqualTo(1)
+    }
 }

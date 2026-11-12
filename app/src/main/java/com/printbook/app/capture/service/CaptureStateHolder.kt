@@ -58,6 +58,8 @@ data class CaptureUiState(
     val interrupted: Boolean = false,
     /** Mensagem de encerramento do modo automático (fim do livro, limite...). */
     val autoStopMessage: String? = null,
+    /** Páginas que o leitor pulou e não puderam ser recuperadas (avisadas em qualquer encerramento). */
+    val missingPages: List<Int> = emptyList(),
     /** Páginas do livro em captura, da mais recente para a mais antiga (preview na bolha). */
     val recentPages: List<PageThumb> = emptyList(),
     /** Painel de revisão aberto na bolha (o automático fica pausado enquanto isso). */
@@ -73,7 +75,7 @@ data class CaptureUiState(
 )
 
 /** Resumo mostrado no cartão de conclusão da bolha. */
-data class CaptureFinished(val bookId: Long, val title: String, val pages: Int)
+data class CaptureFinished(val bookId: Long, val title: String, val pages: Int, val missing: List<Int> = emptyList())
 
 /** Miniatura de uma página capturada, para o painel de revisão da bolha. */
 data class PageThumb(val id: Long, val file: File, val position: Int, val rotation: Int)

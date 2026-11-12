@@ -56,4 +56,20 @@ class AutoTurnControllerTest {
             .doesNotContain(Decision.Pause(Reason.FAILURES))
         assertThat(c.onResult(Result.FAILED)).isEqualTo(Decision.Pause(Reason.FAILURES))
     }
+
+    @Test
+    fun `pagina recuperada conta no limite da sessao`() {
+        // Revisão: a recuperação passava do limite sem parar.
+        val c = AutoTurnController(maxPages = 10)
+        repeat(9) { c.onResult(Result.SAVED) }
+        assertThat(c.onRecovered()).isEqualTo(Decision.Stop(Reason.PAGE_LIMIT))
+        assertThat(c.savedPages).isEqualTo(10)
+    }
+
+    @Test
+    fun `pagina recuperada sem limite continua`() {
+        val c = AutoTurnController(maxPages = null)
+        c.onResult(Result.SAVED)
+        assertThat(c.onRecovered()).isEqualTo(Decision.Continue)
+    }
 }

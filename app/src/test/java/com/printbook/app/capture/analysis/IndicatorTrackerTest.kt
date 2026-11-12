@@ -66,10 +66,57 @@ class IndicatorTrackerTest {
     }
 
     @Test
-    fun `salto grande e volta do leitor`() {
+    fun `salto grande so vale com duas leituras iguais`() {
         val t = confirmedAt(10)
-        assertThat(t.onReading(2, listOf(r(40, 553)))).isEqualTo(Event.Jumped(40, 12))
-        assertThat(t.onReading(2, listOf(r(5, 553)))).isEqualTo(Event.WentBack(5, 12))
+        assertThat(t.onReading(2, listOf(r(40, 553)))).isEqualTo(Event.None)
+        assertThat(t.onReading(3, listOf(r(41, 553)))).isEqualTo(Event.Jumped(41, 13))
+    }
+
+    @Test
+    fun `volta do leitor so vale com duas leituras iguais`() {
+        val t = confirmedAt(10)
+        assertThat(t.onReading(2, listOf(r(5, 553)))).isEqualTo(Event.None)
+        assertThat(t.onReading(3, listOf(r(6, 553)))).isEqualTo(Event.WentBack(6, 13))
+    }
+
+    @Test
+    fun `erro do OCR com salto nao pausa nem muda a contagem`() {
+        // Revisão: "173" lido como "178" movia a base e a leitura certa seguinte parecia "voltou".
+        val t = confirmedAt(171) // posição 1 = 172
+        assertThat(t.onReading(2, listOf(r(178, 553)))).isEqualTo(Event.None)
+        assertThat(t.onReading(3, listOf(r(174, 553)))).isEqualTo(Event.None)
+        assertThat(t.expectedAt(4)).isEqualTo(175)
+    }
+
+    @Test
+    fun `erro do OCR de mais duas paginas nao acusa paginas faltando`() {
+        val t = confirmedAt(171)
+        assertThat(t.onReading(2, listOf(r(175, 553)))).isEqualTo(Event.None) // 173 lido como 175
+        assertThat(t.onReading(3, listOf(r(174, 553)))).isEqualTo(Event.None)
+    }
+
+    @Test
+    fun `duas paginas puladas confirmadas trazem as paginas da primeira leitura`() {
+        val t = confirmedAt(10) // posição 1 = 11
+        assertThat(t.onReading(2, listOf(r(14, 553)))).isEqualTo(Event.None) // esperado 12: faltam 12 e 13
+        assertThat(t.onReading(3, listOf(r(15, 553)))).isEqualTo(Event.Skipped(listOf(12, 13), 15))
+    }
+
+    @Test
+    fun `pequena diferenca para tras que se repete corrige a base`() {
+        // Revisão: com a base 1 à frente, os pulos de uma página ficavam escondidos.
+        val t = confirmedAt(10)
+        assertThat(t.onReading(2, listOf(r(11, 553)))).isEqualTo(Event.None)
+        assertThat(t.onReading(3, listOf(r(12, 553)))).isEqualTo(Event.None) // mesma diferença: corrige
+        // Agora um pulo real de uma página aparece.
+        assertThat(t.onReading(4, listOf(r(14, 553)))).isEqualTo(Event.Skipped(listOf(13), 14))
+    }
+
+    @Test
+    fun `pagina que falhou aparece como pulada na leitura seguinte`() {
+        // A posição só avança com a página salva: a 12 falhou (não salva), a 13 é salva na posição 2.
+        val t = confirmedAt(10)
+        assertThat(t.onReading(2, listOf(r(13, 553)))).isEqualTo(Event.Skipped(listOf(12), 13))
     }
 
     @Test

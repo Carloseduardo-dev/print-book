@@ -59,4 +59,23 @@ class PageIndicatorTest {
         assertThat(capa.pagesToCapture).isNull()
         assertThat(PageIndicator.parse("iv / 553")!!.total).isEqualTo(553)
     }
+
+    @Test
+    fun `data no rodape nao vira pagina`() {
+        // Revisão: "1/11/2026" virava "página 1 de 11" no início do livro todo.
+        assertThat(PageIndicator.parse("Atualizado em 1/11/2026")).isNull()
+        assertThat(PageIndicator.parse("1/11/2026   13 / 553")!!.current).isEqualTo(13)
+    }
+
+    @Test
+    fun `pag abreviado`() {
+        assertThat(PageIndicator.parse("Pág. 7 de 120")!!.current).isEqualTo(7)
+    }
+
+    @Test
+    fun `os dois leitores do rodape concordam`() {
+        val text = "Cap. 3/12   41 / 553   12/11/2026"
+        assertThat(PageIndicator.pageCandidates(text)).containsExactly(3 to 12, 41 to 553)
+        assertThat(IndicatorTracker.candidates(text).map { it.current to it.total }).isEqualTo(PageIndicator.pageCandidates(text))
+    }
 }

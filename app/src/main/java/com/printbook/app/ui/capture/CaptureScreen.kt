@@ -182,6 +182,9 @@ fun CaptureScreen(
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("Captura concluída", style = MaterialTheme.typography.titleMedium)
                             Text(capture.autoStopMessage ?: "${Plurals.pagesSaved(capture.captured)} em \"${cfg.bookTitle}\".")
+                            if (capture.missingPages.isNotEmpty()) {
+                                Text("${Plurals.missingPages(capture.missingPages)}: o leitor pulou e não deu para recuperar.", color = MaterialTheme.colorScheme.error)
+                            }
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(onClick = { onOpenBook(cfg.bookId); viewModel.dismissResult() }) { Text("Abrir print-book") }
                                 TextButton(onClick = viewModel::dismissResult) { Text("Nova captura") }
@@ -410,6 +413,7 @@ private fun RunningCard(capture: CaptureUiState, cfg: CaptureConfig, onStop: () 
             if (capture.duplicatesSkipped > 0) Text(Plurals.count(capture.duplicatesSkipped, "repetida ignorada", "repetidas ignoradas"))
             capture.lastFileBytes?.let { Text("Última página: ${it / 1024} KB") }
             capture.autoStopMessage?.let { Text(it, color = MaterialTheme.colorScheme.tertiary) }
+            if (capture.missingPages.isNotEmpty()) Text(Plurals.missingPages(capture.missingPages), color = MaterialTheme.colorScheme.error)
             Text(
                 when (cfg.mode) {
                     CaptureMode.AUTO -> "Abra o conteúdo na primeira página desejada e toque ▶ na bolha. O app vira as páginas sozinho."

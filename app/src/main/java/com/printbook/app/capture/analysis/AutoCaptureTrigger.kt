@@ -41,7 +41,13 @@ class AutoCaptureTrigger(
      * O quadro "estável" era a virada travada no meio: volta a esperar a página nova estabilizar,
      * mantendo a referência.
      */
-    fun rejectSettled() {
+    fun rejectSettled(current: FrameSignature? = null) {
+        // Com o quadro travado em mãos, ele vira a referência: só segue quando a tela mudar de
+        // verdade (a virada terminar), e não logo depois, na mesma imagem parada.
+        if (current != null) {
+            armWith(current)
+            return
+        }
         state = State.SETTLING
         stableCount = 0
         anchor = null

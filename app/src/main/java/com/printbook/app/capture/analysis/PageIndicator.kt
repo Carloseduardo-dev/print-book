@@ -25,8 +25,25 @@ data class PageIndicator(
         }
 
     companion object {
-        private val slash = Regex("""(?<!\d)(\d{1,5})\s*/\s*(\d{1,5})(?!\d)""")
-        private val pageOf = Regex("""p[áa]gina\s+(\d{1,5})\s+de\s+(\d{1,5})""", RegexOption.IGNORE_CASE)
+        /** "N / total" (não pega datas como 12/11/2026). */
+        private val slash = Regex("""(?<![\d/])(\d{1,5})\s*/\s*(\d{1,5})(?![\d/])""")
+        private val pageOf = Regex("""p[áa]g(?:ina|\.)?\s*(\d{1,5})\s+de\s+(\d{1,5})""", RegexOption.IGNORE_CASE)
+
+        /**
+         * Todos os pares (página, total) do texto, de "página N de M" e "N / total". Usado aqui e
+         * pela conferência a cada página ([IndicatorTracker]): os dois leem o rodapé do mesmo jeito.
+         */
+        fun pageCandidates(text: String): List<Pair<Int, Int>> {
+            val found = mutableListOf<Pair<Int, Int>>()
+            for (rx in listOf(pageOf, slash)) {
+                rx.findAll(text).forEach { m ->
+                    val c = m.groupValues[1].toInt()
+                    val t = m.groupValues[2].toInt()
+                    if (t > 1 && c in 1..t) found += c to t
+                }
+            }
+            return found.distinct()
+        }
         private val location = Regex("""localiza[çc][ãa]o\s+(\d{1,6})\s+de\s+(\d{1,6})""", RegexOption.IGNORE_CASE)
         private val remainingRx = Regex("""(\d{1,5})\s+p[áa]ginas?\s+restantes?(\s+no\s+cap[íi]tulo)?""", RegexOption.IGNORE_CASE)
         private val percentRx = Regex("""(?<!\d)(\d{1,3})\s*%""")
@@ -41,14 +58,7 @@ data class PageIndicator(
                 val (c, t) = m.destructured
                 if (c.toInt() <= t.toInt()) return PageIndicator(c.toInt(), t.toInt(), percent = percent, isLocation = true)
             }
-            pageOf.find(text)?.let { m ->
-                val (c, t) = m.destructured
-                if (c.toInt() in 1..t.toInt()) return PageIndicator(c.toInt(), t.toInt(), percent = percent)
-            }
-            slash.findAll(text).forEach { m ->
-                val (c, t) = m.destructured
-                if (c.toInt() in 1..t.toInt() && t.toInt() > 1) return PageIndicator(c.toInt(), t.toInt(), percent = percent)
-            }
+            pageCandidates(text).firstOrNull()?.let { (c, t) -> return PageIndicator(c, t, percent = percent) }
             labelSlash.find(text)?.let { m ->
                 val total = m.groupValues[2].toInt()
                 if (total > 1) return PageIndicator(total = total, percent = percent)

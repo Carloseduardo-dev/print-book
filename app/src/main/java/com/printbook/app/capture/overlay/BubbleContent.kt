@@ -1,6 +1,7 @@
 package com.printbook.app.capture.overlay
 
 import androidx.compose.foundation.background
+import com.printbook.app.data.search.Plurals
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -85,7 +86,7 @@ fun BubbleContent(
 ) {
     val state by stateHolder.state.collectAsStateWithLifecycle()
     state.finished?.let { done ->
-        FinishedCard(done.title, done.pages, onDrag, onOpenBook, onCloseSummary)
+        FinishedCard(done.title, done.pages, done.missing, onDrag, onOpenBook, onCloseSummary)
         return
     }
     val semiAuto = state.config?.mode != null && state.config?.mode != CaptureMode.MANUAL
@@ -284,6 +285,7 @@ private fun ReviewPanel(pages: List<PageThumb>, onDelete: (Long) -> Unit, onClos
 private fun FinishedCard(
     title: String,
     pages: Int,
+    missing: List<Int>,
     onDrag: (Float, Float) -> Unit,
     onOpenBook: () -> Unit,
     onClose: () -> Unit,
@@ -321,6 +323,13 @@ private fun FinishedCard(
             style = TextStyle(fontFamily = Geist, fontSize = 12.sp, color = PaperText2),
             maxLines = 2,
         )
+        if (missing.isNotEmpty()) {
+            Text(
+                Plurals.missingPages(missing),
+                style = TextStyle(fontFamily = Geist, fontSize = 12.sp, color = CopperDark),
+                maxLines = 2,
+            )
+        }
         Box(
             modifier = Modifier
                 .fillMaxWidth()

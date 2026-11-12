@@ -11,4 +11,10 @@ object Plurals {
     /** "1 página capturada" / "3 páginas capturadas". */
     fun pagesCaptured(n: Number) = count(n, "página capturada", "páginas capturadas")
     fun pagesSaved(n: Number) = count(n, "página salva", "páginas salvas")
+
+    /** "Faltou a página 212" / "Faltaram as páginas 212, 340". */
+    fun missingPages(pages: List<Int>): String {
+        val list = pages.sorted().joinToString(", ")
+        return if (pages.size == 1) "Faltou a página $list" else "Faltaram as páginas $list"
+    }
 }

@@ -38,8 +38,9 @@ class AutoTurnController(
     private var failures = 0
 
     /** Página que o leitor tinha pulado e foi recuperada (conta no total da sessão). */
-    fun onRecovered() {
+    fun onRecovered(): Decision {
         savedPages++
+        return if (maxPages != null && savedPages >= maxPages) Decision.Stop(Reason.PAGE_LIMIT) else Decision.Continue
     }
 
     fun onResult(result: Result): Decision {
