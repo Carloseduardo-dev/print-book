@@ -1,6 +1,7 @@
 package com.printbook.app.capture.service
 
 import android.app.Activity
+import com.printbook.app.data.search.Plurals
 import com.printbook.app.data.repository.InsertPoint
 import android.content.Intent
 import android.content.pm.ServiceInfo
@@ -513,7 +514,7 @@ class CaptureService : LifecycleService() {
             val activityNow = pageTurner.foregroundActivity.value
             if (readerActivity != null && activityNow != null && activityNow != readerActivity) {
                 Log.i(TAG, "Tela mudou de $readerActivity para $activityNow")
-                return AutoEnd("Fim do livro: o app saiu da tela de leitura. ${controller.savedPages} páginas capturadas", true)
+                return AutoEnd("Fim do livro: o app saiu da tela de leitura. ${Plurals.pagesCaptured(controller.savedPages)}", true)
             }
 
             jumpMessage?.let { return AutoEnd(it, false) }
@@ -538,9 +539,9 @@ class CaptureService : LifecycleService() {
 
     private fun stopMessage(reason: AutoTurnController.Reason, saved: Int): String =
         if (reason == AutoTurnController.Reason.PAGE_LIMIT && config?.wholeBook == true && indicator?.pagesToCapture != null) {
-            "Fim do livro: $saved páginas capturadas"
+            "Fim do livro: ${Plurals.pagesCaptured(saved)}"
         } else {
-            "${reason.message}: $saved páginas capturadas"
+            "${reason.message}: ${Plurals.pagesCaptured(saved)}"
         }
 
     private fun Outcome.toTurnResult(): AutoTurnController.Result = when (this) {
@@ -597,7 +598,7 @@ class CaptureService : LifecycleService() {
                 PaceMeter.format(elapsed * (100 - p) / (p - start.first))
             } else null
             stateHolder.update { it.copy(progressLabel = "$p%", eta = eta) }
-            progressMessage = "$saved páginas · $p% do livro" + (eta?.let { " · $it restantes" } ?: "")
+            progressMessage = "${Plurals.pages(saved)} · $p% do livro" + (eta?.let { " · $it restantes" } ?: "")
         }
         updateNotification(stateHolder.state.value.captured)
     }
@@ -784,7 +785,7 @@ class CaptureService : LifecycleService() {
             stateHolder.update { it.copy(finished = done) }
             runCatching {
                 NotificationManagerCompat.from(this)
-                    .notify(CaptureNotification.NOTIFICATION_ID, CaptureNotification.build(this, captured, "Captura concluída: $captured páginas"))
+                    .notify(CaptureNotification.NOTIFICATION_ID, CaptureNotification.build(this, captured, "Captura concluída: ${Plurals.pages(captured)}"))
             }
             summaryJob = lifecycleScope.launch {
                 delay(SUMMARY_MS)

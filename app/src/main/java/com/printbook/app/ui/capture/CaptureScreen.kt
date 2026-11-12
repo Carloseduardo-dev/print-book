@@ -1,6 +1,7 @@
 package com.printbook.app.ui.capture
 
 import androidx.compose.foundation.layout.imePadding
+import com.printbook.app.data.search.Plurals
 import com.printbook.app.data.repository.InsertPoint
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -167,7 +168,7 @@ fun CaptureScreen(
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("Captura interrompida", style = MaterialTheme.typography.titleMedium)
-                            Text("A tela bloqueou ou o compartilhamento foi parado. ${capture.bookPages} páginas já estão salvas em \"${cfg.bookTitle}\".")
+                            Text("A tela bloqueou ou o compartilhamento foi parado. ${if (capture.bookPages == 1) "1 página já está salva" else "${capture.bookPages} páginas já estão salvas"} em \"${cfg.bookTitle}\".")
                             Button(onClick = { viewModel.prepareResume(requestConsent) }, modifier = Modifier.fillMaxWidth()) {
                                 Text("Continuar captura")
                             }
@@ -180,7 +181,7 @@ fun CaptureScreen(
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text("Captura concluída", style = MaterialTheme.typography.titleMedium)
-                            Text(capture.autoStopMessage ?: "${capture.captured} páginas salvas em \"${cfg.bookTitle}\".")
+                            Text(capture.autoStopMessage ?: "${Plurals.pagesSaved(capture.captured)} em \"${cfg.bookTitle}\".")
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Button(onClick = { onOpenBook(cfg.bookId); viewModel.dismissResult() }) { Text("Abrir print-book") }
                                 TextButton(onClick = viewModel::dismissResult) { Text("Nova captura") }
@@ -405,8 +406,8 @@ private fun RunningCard(capture: CaptureUiState, cfg: CaptureConfig, onStop: () 
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("Capturando: ${cfg.bookTitle}", style = MaterialTheme.typography.titleMedium)
             Text("${cfg.sourceApp.label} · ${cfg.mode.label} · ${cfg.quality.label}")
-            Text("${capture.captured} páginas nesta sessão · ${capture.bookPages} no print-book")
-            if (capture.duplicatesSkipped > 0) Text("${capture.duplicatesSkipped} repetidas ignoradas")
+            Text("${Plurals.pages(capture.captured)} nesta sessão · ${capture.bookPages} no print-book")
+            if (capture.duplicatesSkipped > 0) Text(Plurals.count(capture.duplicatesSkipped, "repetida ignorada", "repetidas ignoradas"))
             capture.lastFileBytes?.let { Text("Última página: ${it / 1024} KB") }
             capture.autoStopMessage?.let { Text(it, color = MaterialTheme.colorScheme.tertiary) }
             Text(

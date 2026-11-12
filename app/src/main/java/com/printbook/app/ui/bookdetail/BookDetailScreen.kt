@@ -1,6 +1,7 @@
 package com.printbook.app.ui.bookdetail
 
 import androidx.activity.result.PickVisualMediaRequest
+import com.printbook.app.data.search.Plurals
 import kotlinx.coroutines.flow.map
 import com.printbook.app.ui.components.ImportStatusRow
 import com.printbook.app.data.repository.InsertPoint
@@ -118,7 +119,7 @@ class BookDetailViewModel @Inject constructor(
     fun exportPdf(target: Uri) = viewModelScope.launch {
         _export.value = "Gerando PDF..."
         val result = exporter.exportPdf(bookId, target) { done, total -> _export.value = "Gerando PDF: $done/$total páginas" }
-        _export.value = result.fold({ "PDF salvo ($it páginas)" }, { "Falha ao exportar: ${it.message}" })
+        _export.value = result.fold({ "PDF salvo (${Plurals.pages(it)})" }, { "Falha ao exportar: ${it.message}" })
     }
 
     fun clearExportStatus() { _export.value = null }
@@ -172,7 +173,12 @@ class BookDetailViewModel @Inject constructor(
 
     /** Progresso/resultado da compactação ("Liberar espaço"). */
     val compact: StateFlow<CompactStatus?> =
-        books.observeCompact(bookId).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+        combine(books.observeCompact(bookId), books.observeBook(bookId)) { status, book ->
+            when (status) {
+                is CompactStatus.Done -> status.takeIf { book != null && it.isCurrent(book.createdAt, System.currentTimeMillis()) }
+                else -> status
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
     fun compact(quality: PageQuality) = books.compact(bookId, quality)
 
     fun toggleFavorite(current: Boolean) = viewModelScope.launch { books.setFavorite(bookId, !current) }
@@ -310,7 +316,7 @@ fun BookDetailScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(
                             if (indexed >= ocr.total) "Busca no texto disponível"
-                            else "Preparando a busca no texto: $indexed de ${ocr.total} páginas",
+                            else "Preparando a busca no texto: $indexed de ${Plurals.pages(ocr.total)}",
                             style = MaterialTheme.typography.bodySmall,
                             color = if (indexed >= ocr.total) PrintBook.tokens.success else PrintBook.tokens.subtle,
                         )
@@ -430,7 +436,8 @@ fun BookDetailScreen(
                     when (book.pageCount) {
                         0 -> "Este print-book será apagado. Isso não pode ser desfeito."
                         1 -> "A página capturada será apagada do aparelho. Isso não pode ser desfeito."
-                        else -> "As ${book.pageCount} páginas capturadas serão apagadas do aparelho. Isso não pode ser desfeito."
+                        else -> if (book.pageCount == 1) "A página capturada será apagada do aparelho. Isso não pode ser desfeito."
+                        else "As ${book.pageCount} páginas capturadas serão apagadas do aparelho. Isso não pode ser desfeito."
                     },
                 )
             },

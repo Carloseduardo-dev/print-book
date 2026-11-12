@@ -1,6 +1,7 @@
 package com.printbook.app.capture.service
 
 import android.app.Notification
+import com.printbook.app.data.search.Plurals
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -23,7 +24,7 @@ object CaptureNotification {
         return NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_camera)
             .setContentTitle("print-book capturando")
-            .setContentText(message ?: "$captured páginas capturadas")
+            .setContentText(message ?: Plurals.pagesCaptured(captured))
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(openApp)
@@ -41,7 +42,7 @@ object CaptureNotification {
         return NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_menu_camera)
             .setContentTitle("Captura concluída")
-            .setContentText("$pages páginas em \"$title\". Toque para abrir.")
+            .setContentText("${Plurals.pages(pages)} em \"$title\". Toque para abrir.")
             .setAutoCancel(true)
             .setContentIntent(open)
             .build()

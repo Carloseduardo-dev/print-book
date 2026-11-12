@@ -1,6 +1,7 @@
 package com.printbook.app.ui.library
 
 import com.printbook.app.ui.components.auraOnFocus
+import com.printbook.app.data.search.Plurals
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.ui.graphics.Color
@@ -178,7 +179,7 @@ fun LibraryScreen(
         }
 
         Text(
-            "${state.totalBooks} print-books · ${state.totalPages} páginas",
+            "${Plurals.books(state.totalBooks)} · ${Plurals.pages(state.totalPages)}",
             style = MonoMeta, color = PrintBook.tokens.subtle,
             modifier = Modifier.padding(horizontal = 16.dp),
         )

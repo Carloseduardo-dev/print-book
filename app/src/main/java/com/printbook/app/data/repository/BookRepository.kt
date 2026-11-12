@@ -141,6 +141,7 @@ class BookRepository @Inject constructor(
     }
 
     suspend fun deleteBook(id: Long) = withContext(Dispatchers.IO) {
+        work.cancelCompact(id)
         insertLock.withLock { // não corre junto com compactação/inserção de páginas
             bookDao.delete(id)
             files.deleteBook(id)

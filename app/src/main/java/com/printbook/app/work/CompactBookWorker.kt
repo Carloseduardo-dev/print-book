@@ -49,7 +49,7 @@ class CompactBookWorker @AssistedInject constructor(
             withContext(NonCancellable) { books.refreshStats(bookId) }
         }
         Log.i(TAG, "Livro $bookId compactado em ${quality.label}: ${freed / 1024} KB liberados")
-        return Result.success(workDataOf(KEY_FREED to freed, KEY_TOTAL to ids.size))
+        return Result.success(workDataOf(KEY_FREED to freed, KEY_TOTAL to ids.size, KEY_FINISHED_AT to System.currentTimeMillis()))
     }
 
     companion object {
@@ -58,6 +58,8 @@ class CompactBookWorker @AssistedInject constructor(
         const val KEY_DONE = "done"
         const val KEY_TOTAL = "total"
         const val KEY_FREED = "freed"
+        /** Quando terminou: o resultado só vale para o livro criado antes disso (ids são reaproveitados). */
+        const val KEY_FINISHED_AT = "finishedAt"
         private const val TAG = "CompactBookWorker"
     }
 }

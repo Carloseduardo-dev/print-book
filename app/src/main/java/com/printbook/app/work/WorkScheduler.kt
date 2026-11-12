@@ -47,10 +47,18 @@ class WorkScheduler @Inject constructor(
                     info.progress.getInt(CompactBookWorker.KEY_DONE, 0),
                     info.progress.getInt(CompactBookWorker.KEY_TOTAL, 0),
                 )
-                WorkInfo.State.SUCCEEDED -> CompactStatus.Done(info.outputData.getLong(CompactBookWorker.KEY_FREED, 0))
+                WorkInfo.State.SUCCEEDED -> CompactStatus.Done(
+                    info.outputData.getLong(CompactBookWorker.KEY_FREED, 0),
+                    info.outputData.getLong(CompactBookWorker.KEY_FINISHED_AT, 0),
+                )
                 else -> null
             }
         }
+
+    /** Livro apagado: cancela a compactação dele (o id pode ser reaproveitado por um livro novo). */
+    fun cancelCompact(bookId: Long) {
+        WorkManager.getInstance(context).cancelUniqueWork("compact-$bookId")
+    }
 
     /** Backfill: indexa livros prontos que ainda têm páginas sem OCR (ex.: capturados antes da Fase 4). */
     suspend fun enqueuePendingOcr() {
@@ -64,5 +72,17 @@ class WorkScheduler @Inject constructor(
 
 sealed interface CompactStatus {
     data class Running(val done: Int, val total: Int) : CompactStatus
-    data class Done(val freedBytes: Long) : CompactStatus
+    data class Done(val freedBytes: Long, val finishedAt: Long) : CompactStatus {
+        /**
+         * O resultado é deste livro e recente? O WorkManager guarda o histórico por "compact-<id>"
+         * e o banco reaproveita o id de um livro apagado: sem isso, um livro novo herdaria a
+         * mensagem do antigo ("já estava compactado"). Resultados antigos também deixam de aparecer.
+         */
+        fun isCurrent(bookCreatedAt: Long, now: Long): Boolean =
+            finishedAt >= bookCreatedAt && now - finishedAt in 0..RESULT_TTL_MS
+
+        companion object {
+            const val RESULT_TTL_MS = 30 * 60 * 1000L
+        }
+    }
 }
