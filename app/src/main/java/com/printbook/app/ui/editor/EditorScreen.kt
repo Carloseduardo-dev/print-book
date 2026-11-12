@@ -137,7 +137,7 @@ fun EditorScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(if (selecting) "${state.selected.size} selecionada(s)" else "Editar · ${state.book?.title.orEmpty()}")
+                    Text(if (selecting) (if (state.selected.size == 1) "1 selecionada" else "${state.selected.size} selecionadas") else "Editar · ${state.book?.title.orEmpty()}")
                 },
                 navigationIcon = {
                     if (selecting) {
@@ -238,7 +238,7 @@ fun EditorScreen(
     if (confirmDelete) {
         AlertDialog(
             onDismissRequest = { confirmDelete = false },
-            title = { Text("Excluir ${state.selected.size} página(s)?") },
+            title = { Text(if (state.selected.size == 1) "Excluir 1 página?" else "Excluir ${state.selected.size} páginas?") },
             text = { Text("As imagens serão apagadas do aparelho.") },
             confirmButton = {
                 TextButton(onClick = { confirmDelete = false; viewModel.deleteSelected() }) {

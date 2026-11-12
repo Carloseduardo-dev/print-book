@@ -373,7 +373,15 @@ fun BookDetailScreen(
         AlertDialog(
             onDismissRequest = { deleteDialog = false },
             title = { Text("Excluir \"${book.title}\"?") },
-            text = { Text("As ${book.pageCount} páginas capturadas serão apagadas do aparelho. Isso não pode ser desfeito.") },
+            text = {
+                Text(
+                    when (book.pageCount) {
+                        0 -> "Este print-book será apagado. Isso não pode ser desfeito."
+                        1 -> "A página capturada será apagada do aparelho. Isso não pode ser desfeito."
+                        else -> "As ${book.pageCount} páginas capturadas serão apagadas do aparelho. Isso não pode ser desfeito."
+                    },
+                )
+            },
             confirmButton = {
                 TextButton(onClick = { deleteDialog = false; viewModel.delete(onBack) }) {
                     Text("Excluir", color = MaterialTheme.colorScheme.error)

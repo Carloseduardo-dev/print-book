@@ -393,7 +393,7 @@ private fun BookSearchSheet(
             )
             if (query.trim().length >= 2) {
                 Text(
-                    "${hits.size} página(s)",
+                    if (hits.size == 1) "1 página" else "${hits.size} páginas",
                     style = MaterialTheme.typography.labelMedium,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )

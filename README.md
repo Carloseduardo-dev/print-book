@@ -87,25 +87,25 @@ O **print-book** reúne tudo num só lugar. Ele captura o que aparece na tela de
 
 <table>
   <tr>
-    <td align="center"><img src="docs/screenshots/01-inicio.png" width="220" /><br/><sub><b>Início</b>: continuar lendo e prateleiras</sub></td>
-    <td align="center"><img src="docs/screenshots/02-biblioteca.png" width="220" /><br/><sub><b>Biblioteca</b>: coleções, favoritos, progresso</sub></td>
-    <td align="center"><img src="docs/screenshots/05-leitor.png" width="220" /><br/><sub><b>Leitor</b>: zoom, marcadores, filtros</sub></td>
+    <td align="center"><img src="docs/screenshots/01-inicio.png" width="220" /><br/><sub><b>Início</b>: continue de onde parou</sub></td>
+    <td align="center"><img src="docs/screenshots/02-biblioteca.png" width="220" /><br/><sub><b>Biblioteca</b>: receitas, artigos, docs e livros</sub></td>
+    <td align="center"><img src="docs/screenshots/05-leitor.png" width="220" /><br/><sub><b>Leitor</b>: um artigo guardado para ler offline</sub></td>
   </tr>
   <tr>
-    <td align="center"><img src="docs/screenshots/03-busca.png" width="220" /><br/><sub><b>Busca no texto</b> com OCR offline</sub></td>
-    <td align="center"><img src="docs/screenshots/04-detalhe.png" width="220" /><br/><sub><b>Detalhe</b>: metadados e status do índice</sub></td>
-    <td align="center"><img src="docs/screenshots/07-captura-aura.png" width="220" /><br/><sub><b>Captura</b>: bolha flutuante e aura ao salvar</sub></td>
+    <td align="center"><img src="docs/screenshots/03-busca.png" width="220" /><br/><sub><b>Busca no texto</b>: "cenoura" dentro da receita</sub></td>
+    <td align="center"><img src="docs/screenshots/04-detalhe.png" width="220" /><br/><sub><b>Detalhe</b>: progresso, capa e liberar espaço</sub></td>
+    <td align="center"><img src="docs/screenshots/07-captura-aura.png" width="220" /><br/><sub><b>Captura</b>: a bolha guardando uma receita do navegador</sub></td>
   </tr>
 </table>
 
-<sub>Os livros exibidos são conteúdo de demonstração original, criado para estas imagens.</sub>
+<sub>Receitas, artigo, documentação e livros exibidos são conteúdo de demonstração original, criado para estas imagens.</sub>
 
 ---
 
 ## Funcionalidades
 
 **Captura**
-- Botão flutuante sobre o aplicativo de leitura (overlay em Compose), que se esconde no instante da captura.
+- Botão flutuante sobre o aplicativo em uso (overlay em Compose), que se esconde no instante da captura.
 - Funciona sobre **qualquer aplicativo que permita captura de tela**: leitores, navegador, PDFs e materiais de estudo.
 - Três modos:
   - **Manual:** um toque por página.
