@@ -864,14 +864,16 @@ class CaptureService : LifecycleService() {
         var started: Boolean? = null
         while (started == null) {
             delay(sampleInterval)
-            val sig = sampleNow() ?: continue
-            started = when {
-                trigger.onSample(sig) -> true
-                trigger.state != AutoCaptureTrigger.State.ARMED -> false
-                else -> null
-            }
+            started = sampleNow()?.let(::turnStarted)
         }
         started
+    } ?: sampleNow()?.let(::turnStarted) // o prazo pode ter acabado no meio de uma amostra: olha a tela mais uma vez
+
+    /** Resultado de uma amostra depois do gesto: true = mudou e parou; false = mudando; null = igual a antes. */
+    private fun turnStarted(sig: FrameSignature): Boolean? = when {
+        trigger.onSample(sig) -> true
+        trigger.state != AutoCaptureTrigger.State.ARMED -> false
+        else -> null
     }
 
     /** Espera a tela parar, com a espera extra de página lenta se ela mudou e segue carregando. */
