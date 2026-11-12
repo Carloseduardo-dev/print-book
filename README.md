@@ -39,6 +39,7 @@ Engineering highlights: single-consent capture sessions (Android 14+), frame-sta
 - [Arquitetura](#arquitetura)
 - [Decisões de engenharia](#decisões-de-engenharia)
 - [Qualidade](#qualidade)
+- [Uso de IA](#uso-de-ia)
 - [Stack](#stack)
 - [Começando](#começando)
 - [Roadmap](#roadmap)
@@ -237,7 +238,7 @@ Documento completo de arquitetura: [`docs/SYSTEM_DESIGN.md`](docs/SYSTEM_DESIGN.
 
 ## Qualidade
 
-**Testes unitários (JVM):** 65 testes cobrindo detecção de tela preta, gatilho de captura (incluindo o fim lento da animação), nitidez, leitura do indicador de páginas, ritmo e tempo restante, controlador do modo automático, recorte, formato WebP, utilitários de busca, navegação do leitor e escolha da capa.
+**Testes unitários (JVM):** 159 testes cobrindo detecção de tela preta, gatilho de captura (incluindo o fim lento da animação e a virada travada no meio), nitidez, leitura e conferência do indicador de páginas, ritmo adaptativo do Turbo, recuperação de página pulada, controlador do modo automático, ordem e inserção de páginas no editor, recorte, formato WebP, utilitários de busca, navegação do leitor e escolha da capa.
 
 ```bash
 ./gradlew :app:testPessoalDebugUnitTest
@@ -254,6 +255,41 @@ Documento completo de arquitetura: [`docs/SYSTEM_DESIGN.md`](docs/SYSTEM_DESIGN.
 | OCR offline | **482/482 páginas, 0 falhas**, de 0,4 a 1,7 s por página |
 | Qualidade Econômica | **−46% de espaço** com texto nítido em resolução real |
 | Qualidade Texto / compactar | **−70% de espaço** sem perda de nitidez (cinza sem perda); livro de 100 páginas compactado em 9 s |
+
+---
+
+## Uso de IA
+
+A inteligência artificial teve papel importante no desenvolvimento do print-book, com o apoio de ferramentas como Claude Code e Codex.
+
+**Como a IA foi usada**
+
+- Geração e refatoração de código
+- Escrita de testes automatizados
+- Revisão de código e investigação de bugs
+- Apoio na documentação
+
+**Análise e aprovação do autor**
+
+A IA não define o rumo do projeto. Cada etapa passa pela análise do autor:
+
+- **Antes de implementar:** o autor define o problema, os requisitos e os critérios de aceite, avalia as alternativas propostas e aprova ou ajusta o plano antes de qualquer código ser escrito.
+- **Durante a revisão:** questiona as soluções, pede justificativas sobre riscos e efeitos colaterais e decide quais apontamentos das revisões de código viram correção.
+- **Na validação:** testa pessoalmente no aparelho, em uso real. Problemas encontrados nesses testes, como uma página que o leitor pulou durante uma captura longa, voltam como novas correções, com teste automatizado e nova medição.
+- **Na entrega:** só autoriza o merge na `main` depois de validar o comportamento no aparelho.
+
+**Como a qualidade é garantida**
+
+- 159 testes automatizados e testes em aparelho real, com resultados registrados em [`docs/medicoes-fase1.md`](docs/medicoes-fase1.md).
+- Cada mudança é desenvolvida em um branch separado e só chega à `main` com a aprovação do autor.
+
+**Princípios do projeto**
+
+- O app nunca contorna proteções de captura de tela (`FLAG_SECURE`), seja qual for a origem do código.
+- A política de privacidade é escrita a partir de auditoria do código, não de suposições.
+- Sugestões da IA que conflitam com a privacidade do usuário, com esses princípios ou com a qualidade do projeto são descartadas.
+
+O autor é o responsável por todo o conteúdo deste repositório.
 
 ---
 
