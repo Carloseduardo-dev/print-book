@@ -81,7 +81,7 @@ import com.printbook.app.data.db.entity.PageEntity
 import com.printbook.app.data.prefs.SettingsRepository
 import com.printbook.app.data.repository.BookRepository
 import com.printbook.app.data.repository.PageOrder
-import com.printbook.app.ui.bookdetail.importMessage
+import com.printbook.app.data.repository.importMessage
 import com.printbook.app.ui.components.rememberPageRequest
 import com.printbook.app.ui.navigation.EditorRoute
 import com.printbook.app.ui.theme.PrintBook
@@ -145,10 +145,8 @@ class EditorViewModel @Inject constructor(
     }
 
     private fun markFresh(ids: Set<Long>) {
-        val known = knownIds
+        val added = PageOrder.added(knownIds, ids)
         knownIds = ids
-        if (known == null) return
-        val added = ids - known
         if (added.isEmpty()) return
         fresh.update { it + added }
         freshJob?.cancel()
@@ -203,7 +201,7 @@ class EditorViewModel @Inject constructor(
             MoveTarget.Start -> 0
             MoveTarget.End -> Int.MAX_VALUE
             // Posição na lista sem as selecionadas: quantas não selecionadas ficam antes da página N.
-            is MoveTarget.Before -> ids.take((target.number - 1).coerceAtLeast(0)).count { it !in s.selected }
+            is MoveTarget.Before -> PageOrder.targetBefore(ids, s.selected, target.number)
         }
         books.movePages(bookId, s.selected, index)
     }

@@ -246,7 +246,7 @@ class BookRepository @Inject constructor(
                         files.delete(bookId, page.written.fileName)
                         return@withContext ImportResult(added, failed + uris.size - i)
                     }
-                    val after = insertAfterPosition?.let { it + added }
+                    val after = PageOrder.sessionInsertAfter(insertAfterPosition, added)
                     insertPageLocked(bookId, page.written, page.width, page.height, after)
                     bookDao.refreshStats(bookId)
                 }
@@ -293,10 +293,7 @@ class BookRepository @Inject constructor(
      */
     suspend fun reorderPages(bookId: Long, orderedIds: List<Long>) = withContext(Dispatchers.IO) {
         insertLock.withLock {
-            val current = pageDao.getForBook(bookId).map { it.id }
-            val known = current.toSet()
-            val ordered = orderedIds.filter { it in known }.distinct()
-            editor.reorder(bookId, ordered + current.filterNot { it in ordered.toSet() })
+            editor.reorder(bookId, PageOrder.reconcile(pageDao.getForBook(bookId).map { it.id }, orderedIds))
         }
     }
 

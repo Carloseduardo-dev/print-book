@@ -73,6 +73,7 @@ import com.printbook.app.ui.components.BookCover
 import com.printbook.app.ui.components.formatBytes
 import com.printbook.app.ui.navigation.BookDetailRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import com.printbook.app.data.repository.importMessage
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import kotlinx.coroutines.flow.first
 import com.printbook.app.data.prefs.SettingsRepository
@@ -508,11 +509,4 @@ fun BookDetailScreen(
             confirmButton = { TextButton(onClick = { collectionsDialog = false }) { Text("Fechar") } },
         )
     }
-}
-
-/** Texto do resultado de "Imagens da galeria" (usado no Detalhe e no Editor). */
-internal fun importMessage(r: BookRepository.ImportResult): String = buildString {
-    append(if (r.added == 1) "1 imagem adicionada" else "${r.added} imagens adicionadas")
-    if (r.failed > 0) append(if (r.failed == 1) " · 1 não pôde ser aberta" else " · ${r.failed} não puderam ser abertas")
-    append(".")
 }

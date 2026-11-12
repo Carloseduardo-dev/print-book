@@ -36,6 +36,34 @@ object PageOrder {
         return rest.subList(0, at) + moving + rest.subList(at, rest.size)
     }
 
+    /**
+     * Ordem a gravar a partir da ordem montada na tela ([ordered]) e das páginas que existem agora
+     * ([current]): ids que sumiram são ignorados, repetidos contam uma vez e páginas que chegaram
+     * depois (captura em andamento) vão para o fim. Assim as posições nunca se repetem.
+     */
+    fun reconcile(current: List<Long>, ordered: List<Long>): List<Long> {
+        val known = current.toSet()
+        val kept = ordered.filter { it in known }.distinct()
+        val keptSet = kept.toSet()
+        return kept + current.filterNot { it in keptSet }
+    }
+
+    /**
+     * Índice para [moveTo] que deixa as selecionadas logo antes da página [pageNumber]
+     * (numeração atual, 1-based): quantas páginas não selecionadas vêm antes dela.
+     */
+    fun targetBefore(ids: List<Long>, selected: Set<Long>, pageNumber: Int): Int =
+        ids.take((pageNumber - 1).coerceAtLeast(0)).count { it !in selected }
+
+    /**
+     * Posição de inserção da captura de número [index] (0-based) de uma sessão que começou a
+     * inserir depois de [startAfter]: cada captura entra logo depois da anterior.
+     */
+    fun sessionInsertAfter(startAfter: Int?, index: Int): Int? = startAfter?.let { it + index }
+
+    /** Ids que apareceram de uma emissão para a outra (páginas recém-inseridas). */
+    fun added(previous: Set<Long>?, now: Set<Long>): Set<Long> = if (previous == null) emptySet() else now - previous
+
     /** Move uma página de [from] para [to] (arrastar e soltar). */
     fun move(ids: List<Long>, from: Int, to: Int): List<Long> {
         if (from !in ids.indices) return ids

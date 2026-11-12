@@ -30,6 +30,7 @@ import com.printbook.app.capture.profile.PixelRect
 import com.printbook.app.capture.projection.ProjectionSession
 import com.printbook.app.data.prefs.CaptureMode
 import com.printbook.app.data.repository.BookRepository
+import com.printbook.app.data.repository.PageOrder
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -234,7 +235,7 @@ class CaptureService : LifecycleService() {
             for (job in queue) {
                 try {
                     // Inserindo num ponto X: cada captura entra depois da anterior desta sessão.
-                    val after = cfg.insertAfterPosition?.let { it + insertedThisSession }
+                    val after = PageOrder.sessionInsertAfter(cfg.insertAfterPosition, insertedThisSession)
                     val saved = books.addPage(cfg.bookId, job.bitmap, cfg.quality, insertAfterPosition = after)
                     insertedThisSession++
                     writeFailures = 0
