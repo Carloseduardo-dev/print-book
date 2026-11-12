@@ -1,6 +1,7 @@
 package com.printbook.app.capture.service
 
 import android.app.Activity
+import com.printbook.app.capture.analysis.RecoveryGuard
 import com.printbook.app.capture.analysis.GestureRetry
 import kotlinx.coroutines.async
 import kotlinx.coroutines.Deferred
@@ -84,6 +85,8 @@ class CaptureService : LifecycleService() {
     private var prevSavedSignature: FrameSignature? = null
     /** Confere o número da página a cada captura do automático (página pulada, leitor voltou). */
     private var tracker = IndicatorTracker()
+    /** Desliga a recuperação na sessão se o rodapé estiver sendo lido errado (alarmes falsos próximos). */
+    private var recoveryGuard = RecoveryGuard()
     /** Ritmo do Turbo ajustado ao leitor (vale para a sessão toda). */
     private var adaptive = AdaptivePace()
     /** Páginas que faltaram e não puderam ser recuperadas (avisadas em qualquer encerramento). */
@@ -189,6 +192,7 @@ class CaptureService : LifecycleService() {
         lastSavedSignature = null
         prevSavedSignature = null
         adaptive = AdaptivePace()
+        recoveryGuard = RecoveryGuard()
         missingPages.clear()
         lastEnqueuedJob = null
         lastWrittenJob = null
@@ -498,7 +502,7 @@ class CaptureService : LifecycleService() {
         val readerActivity = pageTurner.foregroundActivity.value
         tracker = IndicatorTracker() // as posições recomeçam a cada retomada
         footerEmptyReads = 0
-        footerOff = false
+        footerOff = !recoveryGuard.enabled // proteção acionada antes da pausa continua valendo
         var position = 0 // posição da página salva: +1 só quando a página é gravada
 
         val first = sampleNow()
@@ -758,10 +762,12 @@ class CaptureService : LifecycleService() {
             }
             is IndicatorTracker.Event.Skipped -> {
                 Log.w(TAG, "Página pulada pelo leitor: ${e.missing} (mostrou a ${e.page})")
+                if (!recoveryGuard.enabled) return null // leitura do rodapé desligada (não deve chegar aqui)
                 val recovery = if (e.missing.size == 1) recoverPrevious(readerPackage) else Recovery.NOT_TRIED
                 Log.i(TAG, "Recuperação da página ${e.missing}: $recovery")
                 when (recovery) {
                     Recovery.RECOVERED -> {
+                        recoveryGuard.onRecovered()
                         val decision = controller.onRecovered()
                         onProgress(controller.savedPages)
                         tracker.accept(position, e.page)
@@ -769,8 +775,12 @@ class CaptureService : LifecycleService() {
                             return AutoEnd(stopMessage(decision.reason, controller.savedPages), true)
                         }
                     }
-                    // Não faltou nada: o rodapé foi lido errado. A contagem continua a de antes.
-                    Recovery.FALSE_ALARM -> Unit
+                    // Não faltou nada: o rodapé foi lido errado. A contagem continua a de antes. Se isso
+                    // se repete em páginas próximas, a leitura não é confiável: para de conferir.
+                    Recovery.FALSE_ALARM -> if (recoveryGuard.onFalseAlarm(position)) {
+                        footerOff = true
+                        Log.w(TAG, "Alarmes falsos seguidos: rodapé lido errado, conferência de páginas desligada nesta sessão")
+                    }
                     Recovery.NOT_TRIED, Recovery.FAILED -> {
                         addMissing(e.missing)
                         tracker.accept(position, e.page)
