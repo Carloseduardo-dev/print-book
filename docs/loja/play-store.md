@@ -81,6 +81,8 @@ Não deixe passar um conteúdo especial. Guarde no print-book.
 
 **Categoria:** Produtividade (alternativa: Livros e referências).
 
+**E-mail de contato do desenvolvedor:** digitalbr316@gmail.com
+
 **Política de privacidade (obrigatória no Play Console):** `https://<domínio-na-vercel>/privacidade` (página em `site/privacidade.html`).
 
 **Segurança dos dados (Data safety):**

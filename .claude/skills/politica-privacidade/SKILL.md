@@ -27,7 +27,7 @@ Levante e anote cada item com a evidência (arquivo e linha):
 - **Atualize a data "Vigente desde" e incremente a versão** no topo; se houver novo tratamento de dados, avise também no app ou na página da Play.
 - Linguagem: português claro, profissional, sem juridiquês desnecessário; base legal LGPD (Lei 13.709/2018).
 - Nada de emojis comuns de celular; ícones são SVG de traço no estilo do site.
-- Não publique e-mail ou dados pessoais do desenvolvedor sem autorização explícita; o contato padrão é a página de issues do GitHub.
+- Contato autorizado pelo desenvolvedor: e-mail **digitalbr316@gmail.com** e a página de issues do GitHub. Não publique nenhum outro dado pessoal sem autorização explícita.
 
 ## 3. Atualizar a ficha da loja
 
