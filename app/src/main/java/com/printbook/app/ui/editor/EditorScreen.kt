@@ -1,6 +1,14 @@
 package com.printbook.app.ui.editor
 
 import android.net.Uri
+import androidx.compose.runtime.saveable.rememberSaveable
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.map
+import com.printbook.app.ui.components.ImportStatusRow
+import com.printbook.app.data.repository.InsertPoint
+import com.printbook.app.data.repository.ImportStatus
+import com.printbook.app.data.repository.GalleryImporter
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -78,10 +86,8 @@ import com.printbook.app.capture.service.CaptureStateHolder
 import com.printbook.app.capture.service.ContinueRequest
 import com.printbook.app.data.db.entity.BookEntity
 import com.printbook.app.data.db.entity.PageEntity
-import com.printbook.app.data.prefs.SettingsRepository
 import com.printbook.app.data.repository.BookRepository
 import com.printbook.app.data.repository.PageOrder
-import com.printbook.app.data.repository.importMessage
 import com.printbook.app.ui.components.rememberPageRequest
 import com.printbook.app.ui.navigation.EditorRoute
 import com.printbook.app.ui.theme.PrintBook
@@ -92,7 +98,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -123,7 +128,7 @@ class EditorViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val books: BookRepository,
     private val capture: CaptureStateHolder,
-    private val settingsRepo: SettingsRepository,
+    private val importer: GalleryImporter,
 ) : ViewModel() {
     val bookId = savedStateHandle.toRoute<EditorRoute>().bookId
     private val selected = MutableStateFlow<Set<Long>>(emptySet())
@@ -133,22 +138,30 @@ class EditorViewModel @Inject constructor(
     private var knownIds: Set<Long>? = null
     private var freshJob: Job? = null
 
-    val state = combine(books.observeBook(bookId), books.observePages(bookId), selected, fresh) { book, pages, sel, fr ->
+    /** Uma consulta só das páginas (a grade e o destaque das novas usam a mesma). */
+    private val pages = books.observePages(bookId)
+        .onEach { list ->
+            val ids = list.map { it.id }.toSet()
+            val added = PageOrder.added(knownIds, ids)
+            knownIds = ids
+            flash(added)
+        }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    val state = combine(books.observeBook(bookId), pages.filterNotNull(), selected, fresh) { book, pages, sel, fr ->
         val ids = pages.map { it.id }.toSet()
         EditorUiState(true, book, pages, sel intersect ids, fr intersect ids)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), EditorUiState())
 
-    init {
-        viewModelScope.launch {
-            books.observePages(bookId).collect { pages -> markFresh(pages.map { it.id }.toSet()) }
-        }
-    }
+    private val _scrollTo = MutableStateFlow<Long?>(null)
+    /** Página para onde a grade deve rolar (depois de mover). Consumida com [scrolled]. */
+    val scrollTo: StateFlow<Long?> = _scrollTo
+    fun scrolled() { _scrollTo.value = null }
 
-    private fun markFresh(ids: Set<Long>) {
-        val added = PageOrder.added(knownIds, ids)
-        knownIds = ids
-        if (added.isEmpty()) return
-        fresh.update { it + added }
+    /** Destaca páginas por alguns segundos (recém-inseridas ou recém-movidas). */
+    private fun flash(ids: Set<Long>) {
+        if (ids.isEmpty()) return
+        fresh.update { it + ids }
         freshJob?.cancel()
         freshJob = viewModelScope.launch {
             delay(FRESH_HIGHLIGHT_MS)
@@ -185,6 +198,7 @@ class EditorViewModel @Inject constructor(
         val to = (from + delta).coerceIn(0, ids.lastIndex)
         if (from == to) return@launch
         books.reorderPages(bookId, PageOrder.move(ids, from, to))
+        _scrollTo.value = id
     }
 
     /** Arrastar e soltar (modo Organizar): grava a ordem montada na tela. */
@@ -192,7 +206,10 @@ class EditorViewModel @Inject constructor(
         if (orderedIds != state.value.pages.map { it.id }) books.reorderPages(bookId, orderedIds)
     }
 
-    /** "Mover para…": leva as selecionadas (na ordem atual entre elas) para o destino. */
+    /**
+     * "Mover para…": leva as selecionadas (na ordem atual entre elas) para o destino. Elas
+     * continuam selecionadas (dá para encadear outra ação); a grade rola até elas e as destaca.
+     */
     fun moveSelectedTo(target: MoveTarget) = viewModelScope.launch {
         val s = state.value
         if (s.selected.isEmpty()) return@launch
@@ -204,49 +221,40 @@ class EditorViewModel @Inject constructor(
             is MoveTarget.Before -> PageOrder.targetBefore(ids, s.selected, target.number)
         }
         books.movePages(bookId, s.selected, index)
+        _scrollTo.value = ids.first { it in s.selected }
+        flash(s.selected)
     }
 
-    /** Posição (0-based) da única página selecionada, para "inserir depois desta". */
-    private fun selectedPosition(): Int? {
-        val s = state.value
-        val id = s.selected.singleOrNull() ?: return null
-        return s.pages.indexOfFirst { it.id == id }.takeIf { it >= 0 }
-    }
+    /** Âncora "depois desta": a única página selecionada (por id, não por número). */
+    fun selectedAnchor(): Long? = state.value.selected.singleOrNull()
 
     /** Prepara a aba Capturar para adicionar páginas: no fim, ou depois da selecionada. */
     fun captureMore(afterSelected: Boolean) {
-        val book = state.value.book ?: return
-        val after = if (afterSelected) selectedPosition() ?: return else null
-        capture.requestContinue(ContinueRequest(book.id, book.title, insertAfterPosition = after))
-        clearSelection()
-    }
-
-    private val _importStatus = MutableStateFlow<String?>(null)
-    val importStatus: StateFlow<String?> = _importStatus
-    private val _importing = MutableStateFlow(false)
-    val importing: StateFlow<Boolean> = _importing
-    private val _importProgress = MutableStateFlow(0f)
-    val importProgress: StateFlow<Float> = _importProgress
-
-    /** Imagens da galeria: no fim ([after] null) ou depois da posição [after]. */
-    fun importImages(uris: List<Uri>, after: Int?) = viewModelScope.launch {
-        if (uris.isEmpty()) return@launch
-        _importing.value = true
-        _importProgress.value = 0f
-        _importStatus.value = "Adicionando ${uris.size} ${if (uris.size == 1) "imagem" else "imagens"}…"
-        val quality = settingsRepo.settings.first().pageQuality
-        val r = books.importImages(bookId, uris, after, quality) { done, total ->
-            _importProgress.value = if (total > 0) done.toFloat() / total else 1f
+        val s = state.value
+        val book = s.book ?: return
+        val request = if (afterSelected) {
+            val id = selectedAnchor() ?: return
+            val number = s.pages.indexOfFirst { it.id == id } + 1
+            ContinueRequest(book.id, book.title, InsertPoint.After(id), "Depois da página $number")
+        } else {
+            ContinueRequest(book.id, book.title, InsertPoint.End, "No fim")
         }
-        _importing.value = false
-        _importStatus.value = importMessage(r)
+        capture.requestContinue(request)
         clearSelection()
     }
 
-    /** Posição para a galeria: depois da selecionada (se pedido) ou no fim. */
-    fun insertPositionForGallery(afterSelected: Boolean): Int? = if (afterSelected) selectedPosition() else null
+    /** Andamento/resultado de "Imagens da galeria" deste print-book. */
+    val importStatus: StateFlow<ImportStatus?> = importer.status.map { it[bookId] }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    fun clearImportStatus() { _importStatus.value = null }
+    /** Imagens da galeria: no fim ([afterPageId] null) ou depois dessa página. Continua fora da tela. */
+    fun importImages(uris: List<Uri>, afterPageId: Long?) {
+        if (uris.isEmpty()) return
+        importer.start(bookId, uris, afterPageId?.let { InsertPoint.After(it) } ?: InsertPoint.End)
+        clearSelection()
+    }
+
+    fun clearImportStatus() = importer.dismiss(bookId)
 
     private companion object {
         const val FRESH_HIGHLIGHT_MS = 4_000L
@@ -263,15 +271,15 @@ fun EditorScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val importStatus by viewModel.importStatus.collectAsStateWithLifecycle()
-    val importing by viewModel.importing.collectAsStateWithLifecycle()
-    val importProgress by viewModel.importProgress.collectAsStateWithLifecycle()
+    val scrollTo by viewModel.scrollTo.collectAsStateWithLifecycle()
     var confirmDelete by remember { mutableStateOf(false) }
     var organizing by remember { mutableStateOf(false) }
     var moreMenu by remember { mutableStateOf(false) }
     var addMenu by remember { mutableStateOf(false) }
     var moveDialog by remember { mutableStateOf(false) }
-    // Onde entram as imagens escolhidas na galeria (definido antes de abrir o seletor).
-    var galleryAfter by remember { mutableStateOf<Int?>(null) }
+    // Página-âncora das imagens da galeria (null = no fim). Saveable: o seletor pode recriar a
+    // Activity (girar a tela) e o resultado chegaria sem saber onde inserir.
+    var galleryAfter by rememberSaveable { mutableStateOf<Long?>(null) }
     val selecting = state.selected.isNotEmpty() && !organizing
     val single = state.selected.size == 1
 
@@ -279,7 +287,7 @@ fun EditorScreen(
         viewModel.importImages(uris, galleryAfter)
     }
     fun openGallery(afterSelected: Boolean) {
-        galleryAfter = viewModel.insertPositionForGallery(afterSelected)
+        galleryAfter = if (afterSelected) viewModel.selectedAnchor() else null
         galleryPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
     }
     fun captureMore(afterSelected: Boolean) {
@@ -290,11 +298,23 @@ fun EditorScreen(
     // Ordem mostrada na tela: acompanha o banco, menos durante um arrasto.
     var order by remember { mutableStateOf(state.pages) }
     var dragging by remember { mutableStateOf(false) }
-    LaunchedEffect(state.pages) { if (!dragging) order = state.pages }
+    // A chave inclui o fim do arrasto: soltar sem mudar nada também ressincroniza (página que
+    // chegou durante o arrasto aparece).
+    LaunchedEffect(state.pages, dragging) { if (!dragging) order = state.pages }
 
     val gridState = rememberLazyGridState()
     val reorderState = rememberReorderableLazyGridState(gridState) { from, to ->
         order = order.toMutableList().apply { add(to.index, removeAt(from.index)) }
+    }
+
+    // Depois de mover: rola até a página (que continua selecionada e pisca com a borda Aura).
+    LaunchedEffect(scrollTo, state.pages) {
+        val id = scrollTo ?: return@LaunchedEffect
+        val index = state.pages.indexOfFirst { it.id == id }
+        if (index >= 0) {
+            gridState.animateScrollToItem(index)
+            viewModel.scrolled()
+        }
     }
 
     Scaffold(
@@ -320,6 +340,10 @@ fun EditorScreen(
                 actions = {
                     if (organizing) {
                         TextButton(onClick = { organizing = false }) { Text("Concluir") }
+                    } else if (selecting) {
+                        IconButton(onClick = viewModel::selectAll) { Icon(Icons.Outlined.SelectAll, "Selecionar todas") }
+                        // "Concluir" deixa claro como terminar (o X à esquerda faz o mesmo).
+                        TextButton(onClick = viewModel::clearSelection) { Text("Concluir") }
                     } else {
                         IconButton(onClick = { viewModel.clearSelection(); organizing = true }, enabled = state.pages.size > 1) {
                             Icon(Icons.Outlined.SwapVert, "Organizar")
@@ -380,43 +404,32 @@ fun EditorScreen(
         },
     ) { padding ->
         if (!state.loaded) return@Scaffold
-        Column(
-            Modifier.padding(top = padding.calculateTopPadding()).padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            val hint = when {
-                organizing -> "Segure e arraste uma página para mudar a ordem"
-                selecting -> null
-                else -> "Segure para selecionar · toque para abrir"
-            }
-            if (hint != null) {
-                Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-            }
-            importStatus?.let { msg ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(msg, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                    if (!importing) {
-                        IconButton(onClick = viewModel::clearImportStatus) { Icon(Icons.Outlined.Close, "Fechar") }
-                    }
+        Column(Modifier.fillMaxSize().padding(top = padding.calculateTopPadding())) {
+            Column(
+                Modifier.padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                val hint = when {
+                    organizing -> "Segure e arraste uma página para mudar a ordem"
+                    selecting -> null
+                    else -> "Segure para selecionar · toque para abrir"
                 }
-                if (importing) {
-                    com.printbook.app.ui.components.AuraProgressBar(progress = importProgress, modifier = Modifier.fillMaxWidth())
+                if (hint != null) {
+                    Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                 }
+                importStatus?.let { ImportStatusRow(it, onDismiss = viewModel::clearImportStatus) }
             }
-        }
-        val headerSpace = (if (selecting) 0.dp else 26.dp) + if (importStatus != null) 52.dp else 0.dp
         val aura = PrintBook.tokens.aura
         LazyVerticalGrid(
             state = gridState,
             columns = GridCells.Adaptive(100.dp),
             contentPadding = PaddingValues(
-                start = 12.dp, end = 12.dp,
-                top = padding.calculateTopPadding() + headerSpace + 4.dp,
+                start = 12.dp, end = 12.dp, top = 8.dp,
                 bottom = padding.calculateBottomPadding() + 88.dp,
             ),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.weight(1f).fillMaxWidth(),
         ) {
             itemsIndexed(order, key = { _, p -> p.id }) { index, page ->
                 ReorderableItem(reorderState, key = page.id, enabled = organizing) { isDragging ->
@@ -434,8 +447,10 @@ fun EditorScreen(
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .then(
                             when {
-                                isSelected -> Modifier.border(3.dp, MaterialTheme.colorScheme.primary, shape)
+                                // Recém-inserida ou recém-movida: borda Aura por alguns segundos
+                                // (vence a da seleção; o ícone de check continua indicando a seleção).
                                 isFresh -> Modifier.border(3.dp, Brush.linearGradient(aura), shape)
+                                isSelected -> Modifier.border(3.dp, MaterialTheme.colorScheme.primary, shape)
                                 else -> Modifier
                             },
                         )
@@ -490,6 +505,7 @@ fun EditorScreen(
                     }
                 }
             }
+        }
         }
     }
 

@@ -7,6 +7,6 @@ fun importMessage(r: BookRepository.ImportResult): String = buildString {
         r.added == 1 -> append("1 imagem adicionada")
         else -> append("${r.added} imagens adicionadas")
     }
-    if (r.failed > 0) append(if (r.failed == 1) " · 1 não pôde ser aberta" else " · ${r.failed} não puderam ser abertas")
+    if (r.failed > 0) append(if (r.failed == 1) " · 1 não pôde ser adicionada" else " · ${r.failed} não puderam ser adicionadas")
     append(".")
 }

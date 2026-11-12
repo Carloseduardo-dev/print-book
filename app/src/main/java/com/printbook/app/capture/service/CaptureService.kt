@@ -1,6 +1,7 @@
 package com.printbook.app.capture.service
 
 import android.app.Activity
+import com.printbook.app.data.repository.InsertPoint
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.graphics.Bitmap
@@ -84,8 +85,8 @@ class CaptureService : LifecycleService() {
     /** Exclusões em andamento (ignora toques repetidos). */
     private val deletingPages = mutableSetOf<Long>()
 
-    /** Páginas gravadas nesta sessão (para inserir em sequência num ponto X). */
-    private var insertedThisSession = 0
+    /** Onde entra a próxima captura (avança para a última página gravada ao inserir num ponto X). */
+    private var insertPoint: InsertPoint = InsertPoint.End
 
     /** Fila de gravação (encode + banco) e a corrotina que a consome. */
     private var writeQueue: Channel<PageJob>? = null
@@ -172,7 +173,7 @@ class CaptureService : LifecycleService() {
         progressMessage = null
         jumpMessage = null
         writeFailures = 0
-        insertedThisSession = 0
+        insertPoint = cfg.insertPoint
         writtenSignatures.clear()
         pace = PaceMeter()
         trigger = AutoCaptureTrigger(stableSamples = STABLE_SAMPLES)
@@ -228,16 +229,22 @@ class CaptureService : LifecycleService() {
 
     // ---- Gravação em paralelo ----
 
+    /** Avança a âncora e a guarda na configuração, para "Continuar captura" seguir dela. */
+    private fun setInsertPoint(point: InsertPoint) {
+        if (point == insertPoint) return
+        insertPoint = point
+        stateHolder.update { it.copy(config = it.config?.copy(insertPoint = point)) }
+    }
+
     private fun startWriter(cfg: CaptureConfig) {
         val queue = Channel<PageJob>(WRITE_QUEUE)
         writeQueue = queue
         writerJob = lifecycleScope.launch {
             for (job in queue) {
                 try {
-                    // Inserindo num ponto X: cada captura entra depois da anterior desta sessão.
-                    val after = PageOrder.sessionInsertAfter(cfg.insertAfterPosition, insertedThisSession)
-                    val saved = books.addPage(cfg.bookId, job.bitmap, cfg.quality, insertAfterPosition = after)
-                    insertedThisSession++
+                    // Inserindo num ponto X: cada captura entra logo depois da anterior.
+                    val saved = books.addPage(cfg.bookId, job.bitmap, cfg.quality, point = insertPoint)
+                    setInsertPoint(PageOrder.chain(insertPoint, saved.pageId))
                     writeFailures = 0
                     lastSavedPageId = saved.pageId
                     sessionPageIds += saved.pageId
@@ -315,6 +322,10 @@ class CaptureService : LifecycleService() {
         if (!deletingPages.add(pageId)) return // toque repetido na mesma página
         lifecycleScope.launch {
             try {
+                // A âncora da inserção é a página excluída: passa para a anterior a ela.
+                if (insertPoint == InsertPoint.After(pageId)) {
+                    runCatching { books.pointBefore(cfg.bookId, pageId) }.getOrNull()?.let { setInsertPoint(it) }
+                }
                 withContext(NonCancellable) { books.deletePages(cfg.bookId, setOf(pageId)) }
             } finally {
                 deletingPages.remove(pageId)

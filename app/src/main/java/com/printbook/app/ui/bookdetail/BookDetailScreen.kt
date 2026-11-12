@@ -1,6 +1,11 @@
 package com.printbook.app.ui.bookdetail
 
 import androidx.activity.result.PickVisualMediaRequest
+import kotlinx.coroutines.flow.map
+import com.printbook.app.ui.components.ImportStatusRow
+import com.printbook.app.data.repository.InsertPoint
+import com.printbook.app.data.repository.ImportStatus
+import com.printbook.app.data.repository.GalleryImporter
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.outlined.Image
@@ -73,10 +78,7 @@ import com.printbook.app.ui.components.BookCover
 import com.printbook.app.ui.components.formatBytes
 import com.printbook.app.ui.navigation.BookDetailRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
-import com.printbook.app.data.repository.importMessage
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
-import kotlinx.coroutines.flow.first
-import com.printbook.app.data.prefs.SettingsRepository
 import com.printbook.app.capture.service.ContinueRequest
 import com.printbook.app.capture.service.CaptureStateHolder
 import com.printbook.app.data.prefs.PageQuality
@@ -106,7 +108,7 @@ class BookDetailViewModel @Inject constructor(
     private val books: BookRepository,
     private val exporter: BookExporter,
     private val capture: CaptureStateHolder,
-    private val settingsRepo: SettingsRepository,
+    private val importer: GalleryImporter,
 ) : ViewModel() {
     val canExport = exporter.available
     private val _export = MutableStateFlow<String?>(null)
@@ -153,28 +155,20 @@ class BookDetailViewModel @Inject constructor(
     fun removeCover() = viewModelScope.launch { books.removeCover(bookId) }
 
     // ---- Adicionar páginas ----
-    private val _importStatus = MutableStateFlow<String?>(null)
-    /** Andamento/resultado de "Imagens da galeria" (null = nada em andamento). */
-    val importStatus: StateFlow<String?> = _importStatus
+    /** Andamento/resultado de "Imagens da galeria" deste print-book (null = nada a mostrar). */
+    val importStatus: StateFlow<ImportStatus?> = importer.status.map { it[bookId] }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     /** Prepara a aba Capturar para continuar este print-book (no fim). */
     fun captureMore() {
         val book = state.value.book ?: return
-        capture.requestContinue(ContinueRequest(book.id, book.title, insertAfterPosition = null))
+        capture.requestContinue(ContinueRequest(book.id, book.title, InsertPoint.End, "No fim"))
     }
 
-    /** Imagens da galeria entram no fim do print-book. */
-    fun importImages(uris: List<Uri>) = viewModelScope.launch {
-        if (uris.isEmpty()) return@launch
-        val quality = settingsRepo.settings.first().pageQuality
-        _importStatus.value = "Adicionando ${uris.size} ${if (uris.size == 1) "imagem" else "imagens"}…"
-        val r = books.importImages(bookId, uris, insertAfterPosition = null, quality = quality) { done, total ->
-            _importStatus.value = "Adicionando imagens: $done de $total"
-        }
-        _importStatus.value = importMessage(r)
-    }
+    /** Imagens da galeria entram no fim do print-book (continua mesmo saindo da tela). */
+    fun importImages(uris: List<Uri>) = importer.start(bookId, uris, InsertPoint.End)
 
-    fun clearImportStatus() { _importStatus.value = null }
+    fun clearImportStatus() = importer.dismiss(bookId)
 
     /** Progresso/resultado da compactação ("Liberar espaço"). */
     val compact: StateFlow<CompactStatus?> =
@@ -358,9 +352,7 @@ fun BookDetailScreen(
                     )
                 }
             }
-            importStatus?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            importStatus?.let { ImportStatusRow(it, onDismiss = viewModel::clearImportStatus) }
             if (book.pageCount > 0 && book.status != BookStatus.CAPTURING) {
                 when (val c = compact) {
                     is CompactStatus.Running -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {

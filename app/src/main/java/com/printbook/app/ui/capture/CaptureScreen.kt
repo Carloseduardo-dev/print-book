@@ -1,6 +1,7 @@
 package com.printbook.app.ui.capture
 
 import androidx.compose.foundation.layout.imePadding
+import com.printbook.app.data.repository.InsertPoint
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.platform.LocalFocusManager
@@ -205,7 +206,7 @@ fun CaptureScreen(
                                         Text("Adicionando páginas a", style = MaterialTheme.typography.labelMedium)
                                         Text(req.title, style = MaterialTheme.typography.titleSmall, maxLines = 2)
                                         Text(
-                                            req.insertAfterPosition?.let { if (it < 0) "No início" else "Depois da página ${it + 1}" } ?: "No fim",
+                                            req.where,
                                             style = MaterialTheme.typography.bodySmall,
                                         )
                                     }
@@ -351,7 +352,7 @@ fun CaptureScreen(
                         onClick = {
                             keyboard?.hide()
                             focusManager.clearFocus()
-                            viewModel.prepare(title, continueBookId, requestConsent, continueRequest?.insertAfterPosition)
+                            viewModel.prepare(title, continueBookId, requestConsent, continueRequest?.point ?: InsertPoint.End)
                             title = ""
                             continueBookIdRaw = null
                         },

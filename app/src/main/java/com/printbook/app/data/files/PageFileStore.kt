@@ -84,11 +84,7 @@ class PageFileStore @Inject constructor(@ApplicationContext private val appConte
      * [PAGE_IMPORT_MAX_WIDTH] e salva na qualidade escolhida. Lança se a imagem não abrir.
      */
     fun writePageFromUri(bookId: Long, uri: Uri, quality: PageQuality): ImportedPage {
-        val bitmap = ImageDecoder.decodeBitmap(ImageDecoder.createSource(appContext.contentResolver, uri)) { decoder, info, _ ->
-            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
-            val w = info.size.width
-            if (w > PAGE_IMPORT_MAX_WIDTH) decoder.setTargetSize(PAGE_IMPORT_MAX_WIDTH, info.size.height * PAGE_IMPORT_MAX_WIDTH / w)
-        }
+        val bitmap = decodeScaled(uri, PAGE_IMPORT_MAX_WIDTH, PAGE_IMPORT_MAX_HEIGHT)
         try {
             return ImportedPage(write(bookId, bitmap, quality), bitmap.width, bitmap.height)
         } finally {
@@ -124,11 +120,7 @@ class PageFileStore @Inject constructor(@ApplicationContext private val appConte
      * ou a gravação falhar (o chamador trata).
      */
     fun writeCover(bookId: Long, uri: Uri): String {
-        val bitmap = ImageDecoder.decodeBitmap(ImageDecoder.createSource(appContext.contentResolver, uri)) { decoder, info, _ ->
-            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
-            val w = info.size.width
-            if (w > COVER_MAX_WIDTH) decoder.setTargetSize(COVER_MAX_WIDTH, info.size.height * COVER_MAX_WIDTH / w)
-        }
+        val bitmap = decodeScaled(uri, COVER_MAX_WIDTH, COVER_MAX_HEIGHT)
         try {
             val dir = bookDir(bookId).apply { mkdirs() }
             // Nome único a cada troca: evita o cache de imagem mostrar a capa antiga.
@@ -146,6 +138,16 @@ class PageFileStore @Inject constructor(@ApplicationContext private val appConte
         }
     }
 
+    /**
+     * Decodifica a imagem já reduzida para caber em [maxWidth] x [maxHeight], mantendo a proporção.
+     * Limitar só a largura não basta: um print longo de rolagem (1440x30000) abriria inteiro.
+     */
+    private fun decodeScaled(uri: Uri, maxWidth: Int, maxHeight: Int): Bitmap =
+        ImageDecoder.decodeBitmap(ImageDecoder.createSource(appContext.contentResolver, uri)) { decoder, info, _ ->
+            decoder.allocator = ImageDecoder.ALLOCATOR_SOFTWARE
+            fitWithin(info.size.width, info.size.height, maxWidth, maxHeight)?.let { (w, h) -> decoder.setTargetSize(w, h) }
+        }
+
     fun delete(bookId: Long, fileName: String) {
         file(bookId, fileName).delete()
     }
@@ -156,13 +158,26 @@ class PageFileStore @Inject constructor(@ApplicationContext private val appConte
 
     fun totalBytes(): Long = root.walkTopDown().filter { it.isFile }.sumOf { it.length() }
 
-    private companion object {
+    internal companion object {
         /** Em WEBP_LOSSLESS, "quality" é o esforço de compressão (medido: ~145 ms/página no A56). */
         const val LOSSLESS_EFFORT = 75
         const val LOSSY_QUALITY = 90
         const val COVER_MAX_WIDTH = 1080
+        const val COVER_MAX_HEIGHT = 2400
         const val TEXT_PREFIX = "g-"
         /** Largura máxima de uma imagem importada como página (fotos de câmera são bem maiores). */
         const val PAGE_IMPORT_MAX_WIDTH = 1600
+        /** Altura máxima: limita a memória de prints longos (1600x4000 ARGB = 25 MB). */
+        const val PAGE_IMPORT_MAX_HEIGHT = 4000
+
+        /**
+         * Tamanho reduzido que cabe em [maxW] x [maxH] mantendo a proporção (nunca menor que 1 px),
+         * ou null se a imagem já cabe.
+         */
+        fun fitWithin(width: Int, height: Int, maxW: Int, maxH: Int): Pair<Int, Int>? {
+            if (width <= 0 || height <= 0 || (width <= maxW && height <= maxH)) return null
+            val scale = minOf(maxW.toDouble() / width, maxH.toDouble() / height)
+            return (width * scale).toInt().coerceAtLeast(1) to (height * scale).toInt().coerceAtLeast(1)
+        }
     }
 }

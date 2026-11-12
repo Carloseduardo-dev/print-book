@@ -1,6 +1,7 @@
 package com.printbook.app.capture.service
 
 import java.io.File
+import com.printbook.app.data.repository.InsertPoint
 import com.printbook.app.data.db.entity.SourceApp
 import com.printbook.app.data.prefs.CaptureMode
 import com.printbook.app.data.prefs.PageQuality
@@ -27,14 +28,17 @@ data class CaptureConfig(
     /** Automático: capturar até o fim, usando o total de páginas lido do leitor. */
     val wholeBook: Boolean = false,
     /**
-     * Adicionando páginas a um print-book existente num ponto X: as capturas entram logo depois
-     * desta posição (0-based; -1 = início). null = no fim.
+     * Onde entram as capturas. Durante a sessão o serviço avança a âncora para a última página
+     * gravada, então "Continuar captura" (após uma interrupção) segue do ponto certo.
      */
-    val insertAfterPosition: Int? = null,
+    val insertPoint: InsertPoint = InsertPoint.End,
 )
 
-/** Pedido vindo do Detalhe/Editor: abrir a aba Capturar já adicionando páginas a um print-book. */
-data class ContinueRequest(val bookId: Long, val title: String, val insertAfterPosition: Int? = null)
+/**
+ * Pedido vindo do Detalhe/Editor: abrir a aba Capturar já adicionando páginas a um print-book.
+ * [where] é o texto da faixa ("No fim", "Depois da página 5").
+ */
+data class ContinueRequest(val bookId: Long, val title: String, val point: InsertPoint, val where: String)
 
 data class CaptureUiState(
     val running: Boolean = false,

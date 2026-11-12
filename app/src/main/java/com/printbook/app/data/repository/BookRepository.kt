@@ -182,83 +182,109 @@ class BookRepository @Inject constructor(
     data class SavedPage(val pageId: Long, val bytes: Long, val encodeMs: Long, val position: Int)
 
     /**
-     * Grava uma página. Sem [insertAfterPosition], entra no fim; com ele (0-based; -1 = início),
-     * entra logo depois daquela posição e as seguintes são renumeradas.
+     * Grava uma página no ponto [point] (fim, início ou depois de uma página). A inserção é uma
+     * transação só; se ela falhar, o arquivo gravado é apagado.
      */
     suspend fun addPage(
         bookId: Long,
         bitmap: Bitmap,
         quality: PageQuality = PageQuality.MAXIMA,
-        insertAfterPosition: Int? = null,
+        point: InsertPoint = InsertPoint.End,
     ): SavedPage = withContext(Dispatchers.IO) {
         val written = files.write(bookId, bitmap, quality)
-        insertLock.withLock {
-            val id = insertPageLocked(bookId, written, bitmap.width, bitmap.height, insertAfterPosition)
-            val position = pageDao.getByIds(listOf(id)).firstOrNull()?.position ?: 0
-            bookDao.refreshStats(bookId)
-            SavedPage(id, written.bytes, written.encodeMs, position)
+        val inserted = try {
+            insertLock.withLock {
+                insertPageLocked(bookId, written, bitmap.width, bitmap.height, point).also { bookDao.refreshStats(bookId) }
+            }
+        } catch (e: Throwable) {
+            files.delete(bookId, written.fileName)
+            throw e
         }
+        SavedPage(inserted.id, written.bytes, written.encodeMs, inserted.position)
     }
 
-    /** Insere a página (chamar dentro de [insertLock]). Devolve o id. */
+    /** Insere a página (chamar dentro de [insertLock]). */
     private suspend fun insertPageLocked(
         bookId: Long,
         written: PageFileStore.Written,
         width: Int,
         height: Int,
-        insertAfterPosition: Int?,
-    ): Long {
-        val id = pageDao.insert(
-            PageEntity(
-                bookId = bookId, position = pageDao.maxPosition(bookId) + 1, fileName = written.fileName,
-                width = width, height = height, byteSize = written.bytes,
-            ),
-        )
-        if (insertAfterPosition != null) {
-            val ids = pageDao.getForBook(bookId).map { it.id }
-            editor.reorder(bookId, PageOrder.insertAfter(ids, listOf(id), insertAfterPosition))
+        point: InsertPoint,
+    ): EditorTransactions.Inserted = editor.insertAt(
+        PageEntity(
+            bookId = bookId, position = 0, fileName = written.fileName,
+            width = width, height = height, byteSize = written.bytes,
+        ),
+        point,
+    )
+
+    /**
+     * Página anterior a [pageId] no livro (para reancorar uma inserção quando a âncora é excluída).
+     * [InsertPoint.Start] se ela é a primeira; null se ela não existe.
+     */
+    suspend fun pointBefore(bookId: Long, pageId: Long): InsertPoint? = withContext(Dispatchers.IO) {
+        val ids = pageDao.getForBook(bookId).map { it.id }
+        val i = ids.indexOf(pageId)
+        when {
+            i < 0 -> null
+            i == 0 -> InsertPoint.Start
+            else -> InsertPoint.After(ids[i - 1])
         }
-        return id
     }
 
     /** Resultado de importar imagens da galeria. */
     data class ImportResult(val added: Int, val failed: Int)
 
     /**
-     * Importa imagens da galeria como páginas, em sequência, no fim ou depois de
-     * [insertAfterPosition]. Imagens que não abrem são puladas. Enfileira o OCR das novas.
+     * Importa imagens da galeria como páginas, em sequência a partir de [point]. Imagens que não
+     * abrem (ou não cabem na memória) são puladas; se a gravação no banco falhar, o arquivo é
+     * apagado. Enfileira o OCR das novas.
      */
     suspend fun importImages(
         bookId: Long,
         uris: List<Uri>,
-        insertAfterPosition: Int?,
+        point: InsertPoint,
         quality: PageQuality,
         onProgress: (done: Int, total: Int) -> Unit = { _, _ -> },
     ): ImportResult = withContext(Dispatchers.IO) {
         var added = 0
         var failed = 0
-        uris.forEachIndexed { i, uri ->
-            onProgress(i, uris.size)
-            try {
-                val page = files.writePageFromUri(bookId, uri, quality)
-                insertLock.withLock {
-                    if (bookDao.get(bookId) == null) {
-                        files.delete(bookId, page.written.fileName)
-                        return@withContext ImportResult(added, failed + uris.size - i)
-                    }
-                    val after = PageOrder.sessionInsertAfter(insertAfterPosition, added)
-                    insertPageLocked(bookId, page.written, page.width, page.height, after)
-                    bookDao.refreshStats(bookId)
+        var next = point
+        try {
+            uris.forEachIndexed { i, uri ->
+                onProgress(i, uris.size)
+                val page = try {
+                    files.writePageFromUri(bookId, uri, quality)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    failed++
+                    return@forEachIndexed
+                } catch (e: OutOfMemoryError) {
+                    failed++
+                    return@forEachIndexed
                 }
-                added++
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                failed++
+                try {
+                    insertLock.withLock {
+                        if (bookDao.get(bookId) == null) {
+                            files.delete(bookId, page.written.fileName)
+                            return@withContext ImportResult(added, failed + uris.size - i)
+                        }
+                        val inserted = insertPageLocked(bookId, page.written, page.width, page.height, next)
+                        bookDao.refreshStats(bookId)
+                        next = PageOrder.chain(next, inserted.id)
+                    }
+                    added++
+                } catch (e: Throwable) {
+                    files.delete(bookId, page.written.fileName)
+                    if (e is CancellationException) throw e
+                    failed++
+                }
             }
+            onProgress(uris.size, uris.size)
+        } finally {
+            if (added > 0) work.enqueueOcr(bookId)
         }
-        onProgress(uris.size, uris.size)
-        if (added > 0) work.enqueueOcr(bookId)
         ImportResult(added, failed)
     }
 

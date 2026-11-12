@@ -12,6 +12,8 @@ import com.printbook.app.data.db.entity.BookEntity
 import com.printbook.app.data.db.entity.BookmarkEntity
 import com.printbook.app.data.db.entity.CollectionEntity
 import com.printbook.app.data.db.entity.PageEntity
+import com.printbook.app.data.repository.InsertPoint
+import com.printbook.app.data.repository.PageOrder
 import kotlinx.coroutines.flow.Flow
 
 /** Livro + arquivo da capa resolvido (capa escolhida ou primeira página). */
@@ -161,10 +163,53 @@ abstract class EditorTransactions {
 
     @Update abstract suspend fun update(pages: List<PageEntity>)
 
-    /** Regrava as posições 0..n-1 na ordem dada. */
+    @Insert protected abstract suspend fun insertPage(page: PageEntity): Long
+
+    @Query("SELECT COALESCE(MAX(position), -1) FROM pages WHERE bookId = :bookId")
+    protected abstract suspend fun maxPosition(bookId: Long): Int
+
+    @Query("SELECT position FROM pages WHERE bookId = :bookId AND id = :pageId")
+    protected abstract suspend fun positionOf(bookId: Long, pageId: Long): Int?
+
+    @Query("UPDATE pages SET position = position + 1 WHERE bookId = :bookId AND position >= :from")
+    protected abstract suspend fun shiftPagesFrom(bookId: Long, from: Int)
+
+    /** Leitura em andamento (null = nunca lido: não há posição a preservar). */
+    @Query("SELECT lastReadPosition FROM books WHERE id = :bookId AND lastReadAt IS NOT NULL")
+    protected abstract suspend fun lastReadPosition(bookId: Long): Int?
+
+    @Query("UPDATE books SET lastReadPosition = :position WHERE id = :bookId")
+    protected abstract suspend fun setLastReadPosition(bookId: Long, position: Int)
+
+    /** Página gravada: id e posição em que entrou. */
+    data class Inserted(val id: Long, val position: Int)
+
+    /**
+     * Insere a página no ponto pedido numa única transação: abre espaço deslocando as seguintes
+     * (uma consulta só, sem regravar o livro todo) e mantém a leitura na mesma página.
+     */
+    @Transaction
+    open suspend fun insertAt(page: PageEntity, point: InsertPoint): Inserted {
+        val bookId = page.bookId
+        val max = maxPosition(bookId)
+        val anchor = (point as? InsertPoint.After)?.let { positionOf(bookId, it.pageId) }
+        val position = PageOrder.insertPosition(point, max, anchor)
+        if (position <= max) {
+            shiftPagesFrom(bookId, position)
+            lastReadPosition(bookId)?.let { if (it >= position) setLastReadPosition(bookId, it + 1) }
+        }
+        return Inserted(insertPage(page.copy(position = position)), position)
+    }
+
+    /** Regrava as posições 0..n-1 na ordem dada; a leitura acompanha a página em que estava. */
     @Transaction
     open suspend fun reorder(bookId: Long, orderedIds: List<Long>) {
-        val byId = pages(bookId).associateBy { it.id }
-        update(orderedIds.mapIndexedNotNull { index, id -> byId[id]?.copy(position = index) })
+        val old = pages(bookId)
+        val byId = old.associateBy { it.id }
+        val ordered = orderedIds.filter { it in byId }
+        update(ordered.mapIndexedNotNull { index, id -> byId[id]?.takeIf { it.position != index }?.copy(position = index) })
+        lastReadPosition(bookId)?.let { lastRead ->
+            PageOrder.followLastRead(old.map { it.id to it.position }, lastRead, ordered)?.let { setLastReadPosition(bookId, it) }
+        }
     }
 }

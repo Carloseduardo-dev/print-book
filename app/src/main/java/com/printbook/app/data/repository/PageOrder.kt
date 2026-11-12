@@ -1,28 +1,34 @@
 package com.printbook.app.data.repository
 
 /**
+ * Onde entram páginas novas. Ancorado numa PÁGINA (id), não num número de posição: exclusões,
+ * reordenações e retomadas no meio do caminho não deslocam o ponto escolhido.
+ */
+sealed interface InsertPoint {
+    data object End : InsertPoint
+    data object Start : InsertPoint
+    data class After(val pageId: Long) : InsertPoint
+}
+
+/**
  * Ordem das páginas de um print-book: funções puras sobre a lista de ids (na ordem atual).
  * O resultado vai para `EditorTransactions.reorder`, que regrava as posições 0..n-1.
  */
 object PageOrder {
 
     /**
-     * Coloca [newIds] logo depois da página na posição [afterIndex] (0-based).
-     * `null` = no fim; `-1` = no início. Ids novos que já estejam na lista são movidos.
+     * Posição em que a página nova entra. [anchorPosition] é a posição atual da página de
+     * [InsertPoint.After] (null se ela já não existe: aí a página vai para o fim).
      */
-    fun insertAfter(ids: List<Long>, newIds: List<Long>, afterIndex: Int?): List<Long> {
-        val rest = ids.filterNot { it in newIds }
-        if (afterIndex == null) return rest + newIds
-        // afterIndex se refere à lista original; recalcula na lista sem os ids novos.
-        val anchor = ids.getOrNull(afterIndex)
-        val at = when {
-            afterIndex < 0 -> 0
-            anchor == null -> rest.size
-            anchor in newIds -> rest.size
-            else -> rest.indexOf(anchor) + 1
-        }
-        return rest.subList(0, at) + newIds + rest.subList(at, rest.size)
+    fun insertPosition(point: InsertPoint, maxPosition: Int, anchorPosition: Int?): Int = when (point) {
+        InsertPoint.End -> maxPosition + 1
+        InsertPoint.Start -> 0
+        is InsertPoint.After -> anchorPosition?.plus(1) ?: (maxPosition + 1)
     }
+
+    /** Próximo ponto de uma sequência: cada página entra logo depois da anterior ([insertedId]). */
+    fun chain(point: InsertPoint, insertedId: Long): InsertPoint =
+        if (point == InsertPoint.End) InsertPoint.End else InsertPoint.After(insertedId)
 
     /**
      * Move as páginas [selected] (mantendo a ordem relativa entre elas) para que a primeira fique
@@ -38,14 +44,22 @@ object PageOrder {
 
     /**
      * Ordem a gravar a partir da ordem montada na tela ([ordered]) e das páginas que existem agora
-     * ([current]): ids que sumiram são ignorados, repetidos contam uma vez e páginas que chegaram
-     * depois (captura em andamento) vão para o fim. Assim as posições nunca se repetem.
+     * ([current]): ids que sumiram são ignorados e repetidos contam uma vez. Páginas que chegaram
+     * depois (captura ou importação em andamento) ficam logo depois da página que as precedia no
+     * banco, não no fim: uma inserção num ponto X continua no ponto X.
      */
     fun reconcile(current: List<Long>, ordered: List<Long>): List<Long> {
         val known = current.toSet()
-        val kept = ordered.filter { it in known }.distinct()
-        val keptSet = kept.toSet()
-        return kept + current.filterNot { it in keptSet }
+        val result = ordered.filter { it in known }.distinct().toMutableList()
+        val placed = result.toHashSet()
+        current.forEachIndexed { i, id ->
+            if (id in placed) return@forEachIndexed
+            val before = current.getOrNull(i - 1)
+            val at = if (before == null) 0 else result.indexOf(before) + 1
+            result.add(at, id)
+            placed += id
+        }
+        return result
     }
 
     /**
@@ -56,10 +70,15 @@ object PageOrder {
         ids.take((pageNumber - 1).coerceAtLeast(0)).count { it !in selected }
 
     /**
-     * Posição de inserção da captura de número [index] (0-based) de uma sessão que começou a
-     * inserir depois de [startAfter]: cada captura entra logo depois da anterior.
+     * Nova posição de leitura depois de reordenar: segue a página em que a pessoa estava.
+     * [old] = (id, posição) antes da mudança; se a página da leitura foi excluída, segue a
+     * anterior mais próxima. null = nada a mudar.
      */
-    fun sessionInsertAfter(startAfter: Int?, index: Int): Int? = startAfter?.let { it + index }
+    fun followLastRead(old: List<Pair<Long, Int>>, lastRead: Int, newOrder: List<Long>): Int? {
+        val id = old.filter { it.second <= lastRead }.maxByOrNull { it.second }?.first ?: return null
+        val index = newOrder.indexOf(id)
+        return index.takeIf { it >= 0 && it != lastRead }
+    }
 
     /** Ids que apareceram de uma emissão para a outra (páginas recém-inseridas). */
     fun added(previous: Set<Long>?, now: Set<Long>): Set<Long> = if (previous == null) emptySet() else now - previous

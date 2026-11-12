@@ -1,6 +1,8 @@
 package com.printbook.app.ui.capture
 
 import androidx.lifecycle.ViewModel
+import kotlinx.coroutines.flow.collectLatest
+import com.printbook.app.data.repository.InsertPoint
 import androidx.lifecycle.viewModelScope
 import com.printbook.app.capture.PageTurner
 import com.printbook.app.capture.service.CaptureConfig
@@ -63,12 +65,18 @@ class CaptureViewModel @Inject constructor(
     /** Livro criado agora para esta captura (apagado se o usuário cancelar o consentimento). */
     private var newlyCreatedBookId: Long? = null
 
-    fun prepare(newTitle: String?, existingBookId: Long?, onReady: () -> Unit, insertAfterPosition: Int? = null) {
+    fun prepare(newTitle: String?, existingBookId: Long?, onReady: () -> Unit, point: InsertPoint = InsertPoint.End) {
         viewModelScope.launch {
             val s = settings.value
             val bookId = existingBookId ?: books.createBook(newTitle, s.lastSourceApp)
             newlyCreatedBookId = if (existingBookId == null) bookId else null
-            val book = books.getBook(bookId) ?: return@launch
+            val book = books.getBook(bookId)
+            if (book == null) {
+                // O print-book foi apagado enquanto o pedido esperava.
+                stateHolder.requestContinue(null)
+                stateHolder.update { it.copy(warning = "Esse print-book não existe mais.") }
+                return@launch
+            }
             stateHolder.pendingConfig = CaptureConfig(
                 bookId = bookId,
                 bookTitle = book.title,
@@ -81,9 +89,8 @@ class CaptureViewModel @Inject constructor(
                 maxPages = s.maxPagesPerSession.takeIf { it > 0 },
                 turbo = s.turbo && s.captureMode != CaptureMode.MANUAL,
                 wholeBook = s.wholeBook && s.captureMode == CaptureMode.AUTO,
-                insertAfterPosition = insertAfterPosition,
+                insertPoint = point,
             )
-            stateHolder.requestContinue(null)
             stateHolder.update { it.copy(warning = null, interrupted = false) }
             onReady()
         }
@@ -92,6 +99,20 @@ class CaptureViewModel @Inject constructor(
     /** Consentimento concedido: o livro passa a ser da sessão de captura. */
     fun onConsentGranted() {
         newlyCreatedBookId = null
+        // Só agora o pedido "adicionar páginas" foi atendido (cancelar a permissão o mantém).
+        stateHolder.requestContinue(null)
+    }
+
+    init {
+        // Pedido de um print-book que foi apagado: some sozinho.
+        viewModelScope.launch {
+            stateHolder.continueRequest.collectLatest { req ->
+                if (req == null) return@collectLatest
+                books.observeBook(req.bookId).collect { book ->
+                    if (book == null) stateHolder.requestContinue(null)
+                }
+            }
+        }
     }
 
     /**
