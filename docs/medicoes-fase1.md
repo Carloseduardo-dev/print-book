@@ -170,3 +170,13 @@ Cobre o que o Teste 9 não cobriu. Livros de teste apagados; posições do Minha
   - O protótipo usava o `TextToSpeech` do Android (voz pt-BR offline `pt-br-x-afs-seanet-embedded`) sobre o texto do OCR, com avanço automático.
   - Bug encontrado antes de pausar: depois da primeira página, o avanço pulou da página 30 para a 33 sem ler a 31 e a 32 (as duas com texto de 1,8 a 2,8 mil caracteres). Causa ainda não identificada (callbacks `onDone`/`onStop` × `QUEUE_FLUSH`).
   - O código foi removido. As funções `TextTools.guessLanguage`/`forSpeech` ficaram, com testes, para reaproveitar.
+
+## Teste 11: 2026-11-12, recuperação com nova tentativa do gesto (feito por Claude via ADB)
+
+Origem: na captura do usuário (447 páginas), a página 433 não foi recuperada porque o Minha Biblioteca ignorou o deslize para trás (6 s sem a tela mudar). Correção: se a tela nem começa a mudar em 2 s, o gesto é repetido (até 3 vezes); dois alarmes falsos a até 10 páginas desligam a conferência na sessão.
+
+| Teste | Resultado |
+|---|---|
+| Minha Biblioteca, Automático Turbo + livro todo, pulo provocado | "Faltou a 181": **recuperada**. 59 páginas (173–231); pelo OCR, 57 conferem e 2 não têm o número legível (as vizinhas batem), nenhuma fora de ordem |
+| Deslizes extras ignorados pelo leitor | Dois dos três caíram durante a animação da virada e o leitor não reagiu: sem pulo, sem página perdida |
+| Gesto ignorado na recuperação e alarmes falsos seguidos | Não reproduzíveis pelo ADB; cobertos pelos testes de `GestureRetry` e `RecoveryGuard` |
