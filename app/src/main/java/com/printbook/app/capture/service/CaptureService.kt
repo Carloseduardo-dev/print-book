@@ -1,6 +1,7 @@
 package com.printbook.app.capture.service
 
 import android.app.Activity
+import com.printbook.app.capture.analysis.GestureRetry
 import kotlinx.coroutines.async
 import kotlinx.coroutines.Deferred
 import com.printbook.app.capture.analysis.IndicatorTracker
@@ -813,21 +814,22 @@ class CaptureService : LifecycleService() {
         if (readerPackage != null && inFront != null && inFront != readerPackage) return Recovery.FAILED
         // A aura de confirmação da última captura não pode entrar na comparação de antes/depois.
         val here = sampleWithoutAura() ?: return Recovery.FAILED
-        trigger.armWith(here)
-        if (!pageTurner.previousPage()) return Recovery.FAILED
-        if (!waitSettleOrSlow()) {
-            // Não mudou nada: o gesto não voltou a página, continua de onde estava. Se mudou e não
-            // parou (leitor carregando), não dá para saber onde a tela está: pausa.
-            if (trigger.state == AutoCaptureTrigger.State.SETTLING) return Recovery.LOST
-            trigger.armWith(here)
-            return Recovery.FAILED
+        when (turnWithRetry(here) { pageTurner.previousPage() }) {
+            GestureRetry.Result.SETTLED -> Unit
+            // Nenhuma tentativa voltou a página: continua de onde estava.
+            GestureRetry.Result.IGNORED -> {
+                trigger.armWith(here)
+                return Recovery.FAILED
+            }
+            // Mudou e não parou (leitor carregando): não dá para saber onde a tela está. Pausa.
+            GestureRetry.Result.UNSETTLED -> return Recovery.LOST
         }
         awaitSharp()
         val outcome = captureOnce(recovery = true)
 
-        // Avança de volta para a página em que estava.
-        sampleNow()?.let { trigger.armWith(it) }
-        val back = pageTurner.nextPage() && waitSettleOrSlow()
+        // Avança de volta para a página em que estava (com nova tentativa se o leitor ignorar).
+        val recovered = sampleNow()
+        val back = recovered != null && turnWithRetry(recovered) { pageTurner.nextPage() } == GestureRetry.Result.SETTLED
         val now = if (back) sampleWithoutAura() else null
         val sameAsBefore = now != null && now.width == here.width && now.meanAbsDiff(here) < RETURN_THRESHOLD
         if (!sameAsBefore) return Recovery.LOST
@@ -837,6 +839,39 @@ class CaptureService : LifecycleService() {
             Outcome.DUPLICATE -> Recovery.FALSE_ALARM
             else -> Recovery.FAILED
         }
+    }
+
+    /**
+     * Gesto da recuperação com nova tentativa quando o leitor o ignora (ex.: caiu durante uma
+     * animação). [from] é a tela antes do gesto (referência do gatilho a cada tentativa).
+     */
+    private suspend fun turnWithRetry(from: FrameSignature, gesture: suspend () -> Boolean): GestureRetry.Result =
+        GestureRetry.turn(
+            attempts = RECOVERY_GESTURE_ATTEMPTS,
+            retryDelayMs = RECOVERY_GESTURE_RETRY_MS,
+            beforeAttempt = { trigger.armWith(from) },
+            gesture = gesture,
+            awaitStart = { awaitTurnStart() },
+            awaitSettle = { waitSettleOrSlow() },
+            onRetry = { Log.i(TAG, "Recuperação: o leitor ignorou o gesto, tentativa $it") },
+        )
+
+    /**
+     * Espera a tela começar a mudar depois do gesto (gatilho armado com a tela de antes).
+     * true = já mudou e parou; false = está mudando; null = nada mudou no prazo (gesto ignorado).
+     */
+    private suspend fun awaitTurnStart(): Boolean? = withTimeoutOrNull(TURN_START_TIMEOUT_MS) {
+        var started: Boolean? = null
+        while (started == null) {
+            delay(sampleInterval)
+            val sig = sampleNow() ?: continue
+            started = when {
+                trigger.onSample(sig) -> true
+                trigger.state != AutoCaptureTrigger.State.ARMED -> false
+                else -> null
+            }
+        }
+        started
     }
 
     /** Espera a tela parar, com a espera extra de página lenta se ela mudou e segue carregando. */
@@ -1127,6 +1162,11 @@ class CaptureService : LifecycleService() {
         private const val READING_WAIT_MS = 1_500L
         /** Diferença máxima (0..255) para considerar que a tela voltou à página de antes. */
         private const val RETURN_THRESHOLD = 2.0
+        /** Recuperação: tentativas do gesto quando o leitor o ignora, e a espera entre elas. */
+        private const val RECOVERY_GESTURE_ATTEMPTS = 3
+        private const val RECOVERY_GESTURE_RETRY_MS = 500L
+        /** Prazo para a tela começar a mudar depois do gesto; sem mudança, o gesto foi ignorado. */
+        private const val TURN_START_TIMEOUT_MS = 2_000L
         /** Teto da recuperação de uma página pulada (voltar, capturar, avançar). */
         private const val RECOVERY_TIMEOUT_MS = 40_000L
         /** Fora do livro todo, para de ler o rodapé depois de N leituras sem "N / total". */
