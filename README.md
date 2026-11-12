@@ -4,9 +4,9 @@
 
 # print-book
 
-### Leitura offline para quem não pode parar de ler.
+### Guarde o que importa. Leia onde estiver.
 
-Um organizador de leitura para Android que preserva o acesso aos livros quando a conexão desaparece: em viagens, no transporte, em áreas rurais ou em qualquer lugar sem sinal.
+Um organizador pessoal para Android que transforma o que você vê na tela em coleções organizadas, pesquisáveis e disponíveis offline: páginas dos livros dos seus apps de leitura, artigos, receitas, tutoriais, documentações e o que mais valer a pena guardar.
 
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.4-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/compose)
@@ -21,7 +21,7 @@ Um organizador de leitura para Android que preserva o acesso aos livros quando a
 <details>
 <summary><b>English summary</b></summary>
 
-**print-book** is an Android app (Kotlin, Jetpack Compose, Material 3) that keeps readers reading when connectivity is gone. While users still have access to their content, it captures the pages their reading app displays, through a floating overlay built on MediaProjection, and turns them into an offline library with a full reader: zoom, filters, bookmarks, on-device OCR full-text search (ML Kit + SQLite FTS4) and PDF export. Captured pages are stored privately on the device and can be deleted at any time.
+**print-book** is an Android app (Kotlin, Jetpack Compose, Material 3) for keeping what matters: pages from the books in your reading apps, articles, recipes, tutorials and documentation. Through a floating overlay built on MediaProjection, it captures what is on screen in any app that allows screenshots and turns it into organized, offline collections with a full reader: zoom, filters, bookmarks, on-device OCR full-text search (ML Kit + SQLite FTS4) and PDF export. Everything stays private on the device and can be deleted at any time.
 
 Engineering highlights: single-consent capture sessions (Android 14+), frame-stability and duplicate detection with pure, unit-tested Kotlin, an accessibility-driven auto page turner isolated in a separate product flavor, a Samsung One UI `Choreographer` pitfall diagnosed and fixed on a real device, and a custom design system with an animated "capture aura" rendered only *after* each frame is taken. The app never bypasses `FLAG_SECURE`.
 </details>
@@ -48,12 +48,20 @@ Engineering highlights: single-consent capture sessions (Android 14+), frame-sta
 
 ## Visão geral
 
-A leitura digital por assinatura colocou bibliotecas inteiras no bolso, mas trouxe uma dependência pouco discutida: **a conexão**. Muitos aplicativos de leitura precisam de internet para abrir o leitor, validar o acesso ou carregar o próximo capítulo. Quando o sinal some, o leitor perde exatamente o tempo que tinha para ler, numa viagem de férias, num voo, no metrô ou numa região com cobertura instável.
+Todo dia a gente encontra algo que quer guardar: a página de um livro que marcou, um artigo para ler com calma, a receita da família, aquela documentação consultada toda semana, um tutorial passo a passo. Na prática, isso fica espalhado em favoritos, abas abertas, prints perdidos na galeria e apps que dependem de internet para abrir.
 
-O **print-book** existe para que esse intervalo não interrompa a leitura. Enquanto o leitor ainda tem acesso ao conteúdo, o app captura as páginas exibidas no aplicativo de leitura e as organiza numa biblioteca offline, com uma experiência de leitura completa. Quando a conexão volta, as capturas podem ser apagadas e a leitura continua normalmente na plataforma original.
+O **print-book** reúne tudo num só lugar. Ele captura o que aparece na tela de qualquer aplicativo que permita captura (leitores, navegador, PDFs, materiais de estudo) e organiza em coleções com busca no texto e uma leitura confortável, **mesmo sem conexão**: numa viagem, num voo, no metrô ou numa região sem sinal.
+
+**Para que serve**
+- 📚 **Leitura:** páginas dos livros que você já tem nos seus apps de leitura, para continuar lendo offline.
+- 🍲 **Receitas:** um caderno de receitas sempre à mão, até na cozinha sem Wi-Fi.
+- 💻 **Estudo e trabalho:** documentações, artigos e tutoriais reunidos por assunto.
+- 🗂️ **Organização pessoal:** guias, referências e anotações que você consulta sempre.
+- 🖼️ **Catálogos:** coleções de imagens e inspirações, do seu jeito.
 
 **Princípios do projeto**
-- **Continuidade da leitura:** o objetivo é não perder o hábito nem o tempo de leitura por falta de rede.
+- **Guardar sem esforço:** do toque na bolha à página organizada, sem sair do app em que você está.
+- **Continuidade da leitura:** não perder o hábito nem o tempo de leitura por falta de rede.
 - **Respeito ao conteúdo:** só o que já está visível na tela, de conteúdo ao qual o usuário tem acesso. Nenhuma proteção é contornada.
 - **Privacidade por padrão:** tudo fica no aparelho, sem conta, sem servidor e sem backup em nuvem.
 - **Leitura confortável:** a interface se recolhe para dar espaço ao texto.
@@ -293,6 +301,8 @@ No Android Studio, escolha a variante em **View → Tool Windows → Build Varia
 - [x] OCR offline, busca no texto e exportação PDF
 - [x] Design system e identidade visual próprios
 - [x] Modo Turbo, captura do livro todo e compactação de livros
+- [ ] Captura de página longa (rolagem) para sites, artigos e receitas
+- [ ] Perfil "Web/Documento" e modelos de coleção (Receitas, Estudos, Leitura)
 - [ ] Leitura em voz alta sobre o texto reconhecido
 - [ ] Publicação da edição para lojas
 

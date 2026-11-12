@@ -21,7 +21,7 @@ class AutoTurnController(
         END_OF_BOOK("Fim do livro"),
         PAGE_LIMIT("Limite de páginas da sessão atingido"),
         BLOCKED("Tela preta: este app bloqueia captura"),
-        LEFT_READER("Captura pausada: você saiu do app de leitura"),
+        LEFT_READER("Captura pausada: você saiu do app que estava sendo capturado"),
         FAILURES("Captura pausada: falhas seguidas ao virar a página"),
     }
 

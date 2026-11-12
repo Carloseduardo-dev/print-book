@@ -49,7 +49,10 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val repo: SettingsRepository,
     private val books: BookRepository,
+    pageTurner: com.printbook.app.capture.PageTurner,
 ) : ViewModel() {
+    /** Edição com virada automática (pessoal). A edição loja não mostra opções do modo Automático. */
+    val supportsAutomation = pageTurner.supportsAutomation
     val settings = repo.settings.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), Settings())
     private val _storage = MutableStateFlow(0L)
     val storage = _storage.asStateFlow()
@@ -100,15 +103,17 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
         Section("Captura") {
             Text("Modo padrão", style = MaterialTheme.typography.bodyMedium)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CaptureMode.entries.forEach { FilterChip(s.captureMode == it, { viewModel.setCaptureMode(it) }, { Text(it.label) }) }
+                CaptureMode.entries.filter { it != CaptureMode.AUTO || viewModel.supportsAutomation }
+                    .forEach { FilterChip(s.captureMode == it, { viewModel.setCaptureMode(it) }, { Text(it.label) }) }
             }
             SwitchRow("Recortar barras e margens", s.autoCrop, viewModel::setAutoCrop)
             SwitchRow("Ignorar páginas repetidas", s.skipDuplicates, viewModel::setSkipDuplicates)
-            SwitchRow("Turbo (Semi e Automático)", s.turbo, viewModel::setTurbo)
+            SwitchRow(if (viewModel.supportsAutomation) "Turbo (Semi e Automático)" else "Turbo", s.turbo, viewModel::setTurbo)
             Text("Qualidade das páginas", style = MaterialTheme.typography.bodyMedium)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PageQuality.entries.forEach { FilterChip(s.pageQuality == it, { viewModel.setQuality(it) }, { Text(it.label) }) }
             }
+            if (viewModel.supportsAutomation) {
             Text("Modo automático: intervalo entre páginas", style = MaterialTheme.typography.bodyMedium)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 AUTO_INTERVALS_MS.forEach { ms ->
@@ -120,6 +125,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 MAX_PAGES_OPTIONS.forEach { n ->
                     FilterChip(s.maxPagesPerSession == n, { viewModel.setMaxPages(n) }, { Text(if (n == 0) "Sem limite" else "$n") })
                 }
+            }
             }
         }
 
@@ -136,7 +142,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
             Text("print-book ${BuildConfig.VERSION_NAME}")
             Text(
                 "Para uso pessoal. Capture apenas conteúdo ao qual você tem acesso legítimo. " +
-                    "O app nunca contorna bloqueios de captura dos apps de leitura.",
+                    "O app nunca contorna bloqueios de captura de outros apps.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

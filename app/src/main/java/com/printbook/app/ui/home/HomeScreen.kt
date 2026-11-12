@@ -84,8 +84,8 @@ fun HomeScreen(
         EmptyState(
             icon = Icons.Outlined.AutoStories,
             title = "Bem-vindo ao print-book",
-            message = "Capture as páginas dos seus apps de leitura e leia offline, em qualquer lugar.",
-            action = { Button(onClick = onStartCapture) { Text("Capturar um livro") } },
+            message = "Guarde páginas de livros, artigos, receitas, tutoriais e documentos de qualquer app. Tudo organizado e disponível offline.",
+            action = { Button(onClick = onStartCapture) { Text("Fazer a primeira captura") } },
         )
         return
     }
@@ -126,7 +126,7 @@ fun HomeScreen(
             ) {
                 Icon(painterResource(R.drawable.ic_pb_capture), contentDescription = null)
                 Column {
-                    Text("Capturar novo livro", style = MaterialTheme.typography.titleSmall)
+                    Text("Nova captura", style = MaterialTheme.typography.titleSmall)
                     Text("abra o leitor → ▶ na bolha", style = MonoMeta, color = PrintBook.tokens.subtle)
                 }
             }

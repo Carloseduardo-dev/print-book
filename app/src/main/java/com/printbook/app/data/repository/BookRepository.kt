@@ -212,7 +212,9 @@ class BookRepository @Inject constructor(
 
         fun defaultTitle(sourceApp: SourceApp): String {
             val stamp = SimpleDateFormat("dd/MM HH:mm", Locale("pt", "BR")).format(Date())
-            return "${sourceApp.label} $stamp"
+            // "Site ou outro app" é longo para título: usa só "Captura".
+            val prefix = if (sourceApp == SourceApp.OTHER) "Captura" else sourceApp.label
+            return "$prefix $stamp"
         }
     }
 }

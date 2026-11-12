@@ -166,7 +166,7 @@ fun CaptureScreen(
                             Button(onClick = { viewModel.prepareResume(requestConsent) }, modifier = Modifier.fillMaxWidth()) {
                                 Text("Continuar captura")
                             }
-                            TextButton(onClick = { onOpenBook(cfg.bookId); viewModel.dismissResult() }) { Text("Ver livro") }
+                            TextButton(onClick = { onOpenBook(cfg.bookId); viewModel.dismissResult() }) { Text("Abrir print-book") }
                         }
                     }
                 }
@@ -177,7 +177,7 @@ fun CaptureScreen(
                             Text("Captura concluída", style = MaterialTheme.typography.titleMedium)
                             Text(capture.autoStopMessage ?: "${capture.captured} páginas salvas em \"${cfg.bookTitle}\".")
                             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Button(onClick = { onOpenBook(cfg.bookId); viewModel.dismissResult() }) { Text("Abrir livro") }
+                                Button(onClick = { onOpenBook(cfg.bookId); viewModel.dismissResult() }) { Text("Abrir print-book") }
                                 TextButton(onClick = viewModel::dismissResult) { Text("Nova captura") }
                             }
                         }
@@ -187,9 +187,9 @@ fun CaptureScreen(
                 else -> {
                     Card(modifier = Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text("Livro", style = MaterialTheme.typography.titleMedium)
+                            Text("print-book", style = MaterialTheme.typography.titleMedium)
                             if (capturingBooks.isNotEmpty()) {
-                                Text("Continuar um livro em captura:", style = MaterialTheme.typography.bodyMedium)
+                                Text("Continuar um print-book em captura:", style = MaterialTheme.typography.bodyMedium)
                                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     capturingBooks.forEach { book ->
                                         FilterChip(
@@ -205,7 +205,7 @@ fun CaptureScreen(
                                     value = title,
                                     onValueChange = { title = it },
                                     label = { Text("Nome do novo print-book") },
-                                    placeholder = { Text("Ex.: Cálculo vol. 2") },
+                                    placeholder = { Text("Ex.: Receitas da família, Cálculo vol. 2") },
                                     singleLine = true,
                                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                                     keyboardActions = KeyboardActions(onDone = { keyboard?.hide(); focusManager.clearFocus() }),
@@ -218,7 +218,7 @@ fun CaptureScreen(
                                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = androidx.compose.ui.graphics.Color.Transparent),
                                     modifier = Modifier.fillMaxWidth().auraOnFocus(cornerRadius = 14.dp),
                                 )
-                                Text("App de leitura", style = MaterialTheme.typography.bodyMedium)
+                                Text("De onde vem o conteúdo", style = MaterialTheme.typography.bodyMedium)
                                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     SourceApp.entries.forEach { app ->
                                         FilterChip(
@@ -282,7 +282,7 @@ fun CaptureScreen(
                                 SwitchRow("Turbo", settings.turbo, viewModel::setTurbo)
                                 if (settings.turbo) {
                                     Text(
-                                        "Vira e captura em cerca de 1 s por página. Viradas muito rápidas podem chamar a atenção do app de leitura.",
+                                        "Vira e captura em cerca de 1 s por página. Viradas muito rápidas podem chamar a atenção do app de origem.",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -336,7 +336,7 @@ fun CaptureScreen(
                     ) { Text("Iniciar captura") }
                     Text(
                         if (autoNeedsService) "Ative a virada automática acima para usar o modo Automático."
-                        else "Na próxima tela, escolha \"Tela inteira\" ou o app de leitura.",
+                        else "Na próxima tela, escolha \"Tela inteira\" ou o app com o conteúdo.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 4.dp),
@@ -380,15 +380,15 @@ private fun RunningCard(capture: CaptureUiState, cfg: CaptureConfig, onStop: () 
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("Capturando: ${cfg.bookTitle}", style = MaterialTheme.typography.titleMedium)
             Text("${cfg.sourceApp.label} · ${cfg.mode.label} · ${cfg.quality.label}")
-            Text("${capture.captured} páginas nesta sessão · ${capture.bookPages} no livro")
+            Text("${capture.captured} páginas nesta sessão · ${capture.bookPages} no print-book")
             if (capture.duplicatesSkipped > 0) Text("${capture.duplicatesSkipped} repetidas ignoradas")
             capture.lastFileBytes?.let { Text("Última página: ${it / 1024} KB") }
             capture.autoStopMessage?.let { Text(it, color = MaterialTheme.colorScheme.tertiary) }
             Text(
                 when (cfg.mode) {
-                    CaptureMode.AUTO -> "Abra o livro na primeira página desejada e toque ▶ na bolha. O app vira as páginas sozinho."
-                    CaptureMode.SEMI_AUTO -> "Abra o livro, toque ▶ na bolha e vá virando as páginas."
-                    CaptureMode.MANUAL -> "Abra o livro e toque no botão da câmera a cada página."
+                    CaptureMode.AUTO -> "Abra o conteúdo na primeira página desejada e toque ▶ na bolha. O app vira as páginas sozinho."
+                    CaptureMode.SEMI_AUTO -> "Abra o conteúdo, toque ▶ na bolha e vá virando as páginas."
+                    CaptureMode.MANUAL -> "Abra o conteúdo e toque no botão da câmera a cada página."
                 },
                 style = MaterialTheme.typography.bodySmall,
             )

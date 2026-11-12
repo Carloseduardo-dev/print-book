@@ -206,7 +206,7 @@ fun BookDetailScreen(
     ) { padding ->
         if (!state.loaded) return@Scaffold
         if (book == null) {
-            Text("Livro não encontrado.", Modifier.padding(padding).padding(24.dp))
+            Text("print-book não encontrado.", Modifier.padding(padding).padding(24.dp))
             return@Scaffold
         }
         Column(
@@ -316,7 +316,7 @@ fun BookDetailScreen(
                         }
                         if (c is CompactStatus.Done) {
                             Text(
-                                if (c.freedBytes > 0) "Liberou ${formatBytes(c.freedBytes)}." else "Este livro já estava compactado.",
+                                if (c.freedBytes > 0) "Liberou ${formatBytes(c.freedBytes)}." else "Este print-book já estava compactado.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -405,7 +405,7 @@ fun BookDetailScreen(
             title = { Text("Liberar espaço") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Hoje este livro ocupa ${formatBytes(book.totalBytes)}. As páginas são recodificadas no aparelho, em segundo plano.")
+                    Text("Hoje este print-book ocupa ${formatBytes(book.totalBytes)}. As páginas são recodificadas no aparelho, em segundo plano.")
                     Text("Econômica: cerca de metade do espaço, mantém as cores.", style = MaterialTheme.typography.bodySmall)
                     Text("Texto: o menor tamanho (cerca de 1/3), em tons de cinza e sem perder nitidez. Perde as cores das figuras.", style = MaterialTheme.typography.bodySmall)
                 }

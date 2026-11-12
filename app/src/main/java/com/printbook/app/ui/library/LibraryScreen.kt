@@ -172,13 +172,13 @@ fun LibraryScreen(
             EmptyState(
                 icon = Icons.AutoMirrored.Outlined.LibraryBooks,
                 title = "Sua biblioteca está vazia",
-                message = "Os print-books que você capturar aparecem aqui.",
+                message = "Livros, artigos, receitas e tudo o que você capturar aparecem aqui.",
             )
             return
         }
 
         Text(
-            "${state.totalBooks} livros · ${state.totalPages} páginas",
+            "${state.totalBooks} print-books · ${state.totalPages} páginas",
             style = MonoMeta, color = PrintBook.tokens.subtle,
             modifier = Modifier.padding(horizontal = 16.dp),
         )
@@ -245,7 +245,7 @@ fun LibraryScreen(
                 if (state.textHits.isEmpty()) {
                     item {
                         Text(
-                            "Nada encontrado no texto. Livros recém-capturados podem ainda estar sendo indexados.",
+                            "Nada encontrado no texto. Capturas recentes podem ainda estar sendo indexadas.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 16.dp),
@@ -258,7 +258,7 @@ fun LibraryScreen(
             }
         } else if (state.books.isEmpty()) {
             Text(
-                "Nenhum livro encontrado.",
+                "Nenhum print-book encontrado.",
                 modifier = Modifier.padding(24.dp),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

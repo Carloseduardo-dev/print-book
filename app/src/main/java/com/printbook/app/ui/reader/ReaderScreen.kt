@@ -386,7 +386,7 @@ private fun BookSearchSheet(
             OutlinedTextField(
                 value = query,
                 onValueChange = { query = it },
-                placeholder = { Text("Buscar neste livro") },
+                placeholder = { Text("Buscar neste print-book") },
                 leadingIcon = { Icon(Icons.Outlined.Search, null) },
                 singleLine = true,
                 shape = RoundedCornerShape(14.dp),

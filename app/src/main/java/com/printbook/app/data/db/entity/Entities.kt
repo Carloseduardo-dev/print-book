@@ -12,7 +12,7 @@ enum class SourceApp(val label: String, val packageName: String?) {
     KINDLE("Kindle", "com.amazon.kindle"),
     PLAY_BOOKS("Play Livros", "com.google.android.apps.books"),
     MINHA_BIBLIOTECA("Minha Biblioteca", "com.minha.biblioteca"),
-    OTHER("Outro app", null);
+    OTHER("Site ou outro app", null);
 
     companion object {
         fun fromPackage(pkg: String?): SourceApp = entries.firstOrNull { it.packageName == pkg } ?: OTHER

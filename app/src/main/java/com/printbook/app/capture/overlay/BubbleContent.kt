@@ -330,7 +330,7 @@ private fun FinishedCard(
                 .padding(vertical = 10.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text("Abrir livro", style = TextStyle(fontFamily = Geist, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Ink))
+            Text("Abrir print-book", style = TextStyle(fontFamily = Geist, fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Ink))
         }
     }
 }
